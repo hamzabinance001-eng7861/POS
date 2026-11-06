@@ -30,6 +30,7 @@ import com.inventry.pos.data.Store
 import com.inventry.pos.data.fmtDate
 import com.inventry.pos.data.money
 import com.inventry.pos.data.qtyText
+import com.inventry.pos.data.receiptText
 
 @Composable
 private fun LineTable(lines: List<CartLine>, priceHeader: String) {
@@ -58,6 +59,7 @@ fun SaleDialog(saleId: Long, onClose: () -> Unit) {
     val lines = remember(Store.rev, saleId) { Store.saleLines(saleId) }
     var paying by remember { mutableStateOf(false) }
     var voiding by remember { mutableStateOf(false) }
+    var returning by remember { mutableStateOf(false) }
     if (sale == null) return
 
     AlertDialog(
@@ -71,20 +73,27 @@ fun SaleDialog(saleId: Long, onClose: () -> Unit) {
                 Column(Modifier.padding(top = 8.dp)) {
                     SumLine("Subtotal", money(sale.sub))
                     if (sale.discount > 0) SumLine("Discount", "− " + money(sale.discount))
+                    if (sale.tax > 0) SumLine("Tax (${qtyText(sale.taxRate)}%)", money(sale.tax))
+                    if (sale.charge > 0) SumLine(sale.chargeLabel, money(sale.charge))
                     SumLine("Total", money(sale.total), big = true)
+                    if (sale.returned > 0) SumLine("Goods returned", "− " + money(sale.returned))
                     SumLine("Received", money(sale.paid))
                     if (sale.due > 0.004 && !sale.voided) SumLine("Left to pay", money(sale.due), color = MaterialTheme.colorScheme.error)
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { shareText(context, Store.receiptText(sale.id), "Share receipt") }) { Text("Share") }
+                    if (!sale.voided) TextButton(onClick = { returning = true }) { Text("Return items") }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (!sale.voided && sale.due > 0.004) TextButton(onClick = { paying = true }) { Text("Receive payment") }
+                    if (!sale.voided) TextButton(onClick = { voiding = true }) { Text("Void", color = MaterialTheme.colorScheme.error) }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Close") } },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (!sale.voided && sale.due > 0.004) TextButton(onClick = { paying = true }) { Text("Receive payment") }
-                if (!sale.voided) TextButton(onClick = { voiding = true }) { Text("Void", color = MaterialTheme.colorScheme.error) }
-            }
-        },
     )
+
+    if (returning) ReturnDialog(sale.id) { returning = false }
 
     if (paying) {
         AmountDialog("Receive payment", "Invoice #${sale.no} · left to pay ${money(sale.due)}", sale.due, { paying = false }) {

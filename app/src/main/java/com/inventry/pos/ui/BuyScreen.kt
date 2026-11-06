@@ -22,6 +22,7 @@ import com.inventry.pos.data.CartLine
 import com.inventry.pos.data.Store
 import com.inventry.pos.data.fmtDate
 import com.inventry.pos.data.money
+import com.inventry.pos.data.parties
 import com.inventry.pos.data.plain
 
 @Composable
@@ -29,6 +30,7 @@ fun BuyScreen() {
     val context = LocalContext.current
     val products = remember(Store.rev) { Store.products() }
     val history = remember(Store.rev) { Store.purchases() }
+    val supplierNames = remember(Store.rev) { Store.parties("suppliers").map { it.name } }
 
     var supplier by rememberSaveable { mutableStateOf("") }
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -49,8 +51,8 @@ fun BuyScreen() {
             AppCard {
                 Heading("New purchase")
                 Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Field("Supplier", supplier, { supplier = it }, placeholder = "Supplier name")
-                    ProductPicker(products, selected) { selectedId = it.id }
+                    NameField("Supplier", supplier, { supplier = it }, supplierNames, placeholder = "Supplier name")
+                    ProductChooser(products, selected) { selectedId = it.id }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         NumField("Quantity", qty, { qty = it }, Modifier.weight(1f))
                         NumField("Cost each", cost, { cost = it }, Modifier.weight(1f))

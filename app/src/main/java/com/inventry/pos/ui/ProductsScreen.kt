@@ -1,10 +1,14 @@
 package com.inventry.pos.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,7 +35,11 @@ import com.inventry.pos.data.qtyText
 fun ProductsScreen() {
     val context = LocalContext.current
     var search by rememberSaveable { mutableStateOf("") }
-    val products = remember(Store.rev, search) { Store.products(search.trim()) }
+    var categoryFilter by rememberSaveable { mutableStateOf("") }
+    val categories = remember(Store.rev) { Store.categories() }
+    val products = remember(Store.rev, search, categoryFilter) {
+        Store.products(search.trim()).filter { categoryFilter.isEmpty() || it.category == categoryFilter }
+    }
     val total = remember(Store.rev) { Store.products().size }
 
     var editId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -40,15 +48,39 @@ fun ProductsScreen() {
     var cost by rememberSaveable { mutableStateOf("") }
     var stock by rememberSaveable { mutableStateOf("") }
     var low by rememberSaveable { mutableStateOf("5") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var barcode by rememberSaveable { mutableStateOf("") }
+    var unit by rememberSaveable { mutableStateOf("") }
+    var newImage by remember { mutableStateOf<ByteArray?>(null) }
+    var removeImage by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Product?>(null) }
+    var adjusting by remember { mutableStateOf<Product?>(null) }
 
-    fun clearForm() { editId = null; name = ""; price = ""; cost = ""; stock = ""; low = "5" }
+    fun clearForm() {
+        editId = null; name = ""; price = ""; cost = ""; stock = ""; low = "5"
+        category = ""; barcode = ""; unit = ""; newImage = null; removeImage = false
+    }
+
+    val pickImage = rememberImagePicker { newImage = it; removeImage = false }
+    val existing = remember(editId, Store.rev) { editId?.let { Store.productImage(it) } }
+    val shown = newImage ?: if (removeImage) null else existing
 
     TwoPane(
         left = {
             AppCard {
                 Heading(if (editId == null) "Add a product" else "Edit product")
                 Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (shown != null) BytesImage(shown, 72.dp, corner = 18.dp) else Avatar(name.ifBlank { "+" }, 72.dp, circle = false)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            BigButton(if (shown == null) "Add photo" else "Change photo", onClick = pickImage, tonal = true)
+                            if (shown != null) {
+                                TextButton(onClick = { newImage = null; removeImage = true }) {
+                                    Text("Remove photo", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
                     Field("Name", name, { name = it })
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         NumField("Selling price", price, { price = it }, Modifier.weight(1f))
@@ -58,6 +90,11 @@ fun ProductsScreen() {
                         NumField(if (editId == null) "Opening stock" else "In stock", stock, { stock = it }, Modifier.weight(1f))
                         NumField("Low-stock alert", low, { low = it }, Modifier.weight(1f))
                     }
+                    NameField("Category", category, { category = it }, categories, placeholder = "e.g. Cement, Pipes")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Field("Barcode / code", barcode, { barcode = it }, Modifier.weight(1.3f))
+                        Field("Unit", unit, { unit = it }, Modifier.weight(1f), placeholder = "bag, pc, ft")
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         BigButton(
                             if (editId == null) "Add product" else "Save changes",
@@ -66,6 +103,7 @@ fun ProductsScreen() {
                                     editId, name,
                                     price.toDoubleOrNull() ?: 0.0, cost.toDoubleOrNull() ?: 0.0,
                                     stock.toDoubleOrNull() ?: 0.0, low.toDoubleOrNull() ?: 0.0,
+                                    category, barcode, unit, newImage, removeImage,
                                 )
                                 if (err != null) toast(context, err) else { toast(context, "Saved."); clearForm() }
                             },
@@ -79,15 +117,31 @@ fun ProductsScreen() {
         right = {
             AppCard {
                 Heading("Products ($total)")
-                Column(Modifier.padding(top = 8.dp)) { Field("Search", search, { search = it }) }
+                Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Field("Search name, barcode or category", search, { search = it })
+                    if (categories.isNotEmpty()) {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Chip("All", categoryFilter.isEmpty()) { categoryFilter = "" }
+                            categories.forEach { c -> Chip(c, categoryFilter == c) { categoryFilter = c } }
+                        }
+                    }
+                }
                 if (products.isEmpty()) EmptyState(if (total == 0) "No products yet. Add your first one." else "No product matches.")
                 products.forEach { p ->
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ProductThumb(p, 52.dp)
+                        Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(p.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(
+                                listOf(p.category, p.barcode).filter { it.isNotBlank() }.joinToString("  ·  ").ifEmpty { "No category" },
+                                color = muted(), fontSize = 12.sp,
+                            )
                             Text("Sell ${money(p.price)}  ·  Cost ${money(p.cost)}", color = muted(), fontSize = 12.sp)
                             Pill(
-                                "${qtyText(p.stock)} in stock",
+                                qtyText(p.stock) + (if (p.unit.isNotBlank()) " ${p.unit}" else "") + " in stock",
                                 when {
                                     p.stock <= 0 -> Red
                                     p.stock <= p.low -> Amber
@@ -95,13 +149,17 @@ fun ProductsScreen() {
                                 },
                             )
                         }
-                        TextButton(onClick = {
-                            editId = p.id; name = p.name; price = plain(p.price); cost = plain(p.cost)
-                            stock = plain(p.stock); low = plain(p.low)
-                        }) { Text("Edit") }
-                        TextButton(onClick = { deleting = p }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                        Column(horizontalAlignment = Alignment.End) {
+                            TextButton(onClick = {
+                                editId = p.id; name = p.name; price = plain(p.price); cost = plain(p.cost)
+                                stock = plain(p.stock); low = plain(p.low); category = p.category
+                                barcode = p.barcode; unit = p.unit; newImage = null; removeImage = false
+                            }) { Text("Edit") }
+                            TextButton(onClick = { adjusting = p }) { Text("Stock") }
+                            TextButton(onClick = { deleting = p }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                        }
                     }
-                    HorizontalDivider(Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                    HorizontalDivider(Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                 }
             }
         },
@@ -115,4 +173,39 @@ fun ProductsScreen() {
             if (err == null && editId == p.id) clearForm()
         }
     }
+    adjusting?.let { p -> AdjustDialog(p) { adjusting = null } }
+}
+
+/** Add stock found, or take off stock that was lost, broken or used, and remember why. */
+@Composable
+private fun AdjustDialog(p: Product, onClose: () -> Unit) {
+    val context = LocalContext.current
+    var adding by remember { mutableStateOf(true) }
+    var qty by remember { mutableStateOf("") }
+    var reason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onClose,
+        shape = RoundedCornerShape(24.dp),
+        title = { Text("Adjust ${p.name}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("In stock now: ${qtyText(p.stock)}", color = muted(), fontSize = 13.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Chip("Add stock", adding) { adding = true }
+                    Chip("Remove stock", !adding) { adding = false }
+                }
+                NumField("Quantity", qty, { qty = it }, Modifier.fillMaxWidth())
+                Field("Reason", reason, { reason = it }, placeholder = if (adding) "Found, counted, gift…" else "Damaged, lost, own use…")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val q = qty.toDoubleOrNull() ?: 0.0
+                val err = Store.adjustStock(p.id, if (adding) q else -q, reason)
+                if (err != null) toast(context, err) else { toast(context, "Stock updated."); onClose() }
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+    )
 }

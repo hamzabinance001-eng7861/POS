@@ -187,34 +187,6 @@ fun ListRow(title: String, subtitle: String, amount: String, pill: Pair<String, 
 }
 
 @Composable
-fun ProductPicker(products: List<Product>, selected: Product?, onSelect: (Product) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            onClick = { open = true },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            Text(
-                selected?.let { "${it.name}  ·  ${qtyText(it.stock)} in stock" } ?: if (products.isEmpty()) "Add a product first" else "Choose a product",
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Start,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text("▾", color = muted())
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            products.forEach { p ->
-                DropdownMenuItem(
-                    text = { Text("${p.name}  ·  ${qtyText(p.stock)} in stock") },
-                    onClick = { open = false; onSelect(p) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun AmountDialog(title: String, note: String, initial: Double, onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
     var text by remember { mutableStateOf(plain(initial)) }
     AlertDialog(
