@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventry.pos.data.Periods
 import com.inventry.pos.data.Store
+import com.inventry.pos.data.adjustments
+import com.inventry.pos.data.paymentMethods
+import com.inventry.pos.data.serviceSales
 import com.inventry.pos.data.cashBook
 import com.inventry.pos.data.customersOwing
 import com.inventry.pos.data.expensesByCategory
@@ -37,6 +40,7 @@ import com.inventry.pos.data.vehicleSummaries
 private val REPORTS = listOf(
     "Sales by day", "By product", "By category", "By customer", "Profit", "Cash book",
     "Expenses", "Tax", "Stock", "Low stock", "Money owed", "Vehicles",
+    "Payment methods", "Services", "Stock changes",
 )
 
 /** Stock, low stock and money owed are "as of now", so they do not use a date range. */
@@ -174,6 +178,29 @@ fun ReportsScreen(initialKind: Int = 0) {
                             listOf("Supplier", "You owe"),
                             suppliers.map { listOf(it.name, money(it.amount)) },
                             listOf("Total", money(suppliers.sumOf { it.amount })),
+                        )
+                    }
+                    12 -> {
+                        val rows = remember(Store.rev, periodIndex) { Store.paymentMethods(period) }
+                        ReportTable(
+                            listOf("Method", "In", "Out"),
+                            rows.map { listOf(it.method, money(it.received), money(it.paidOut)) },
+                            listOf("Total", money(rows.sumOf { it.received }), money(rows.sumOf { it.paidOut })),
+                        )
+                    }
+                    13 -> {
+                        val rows = remember(Store.rev, periodIndex) { Store.serviceSales(period) }
+                        ReportTable(
+                            listOf("Service / custom item", "Qty", "Earned"),
+                            rows.map { listOf(it.name, qtyText(it.qty), money(it.amount)) },
+                            listOf("Total", qtyText(rows.sumOf { it.qty }), money(rows.sumOf { it.amount })),
+                        )
+                    }
+                    14 -> {
+                        val rows = remember(Store.rev, periodIndex) { Store.adjustments(period) }
+                        ReportTable(
+                            listOf("When / product", "Change", "Reason"),
+                            rows.map { listOf(fmtDate(it.date) + " · " + it.product, (if (it.delta > 0) "+" else "") + qtyText(it.delta), it.reason.ifBlank { "—" }) },
                         )
                     }
                     else -> {

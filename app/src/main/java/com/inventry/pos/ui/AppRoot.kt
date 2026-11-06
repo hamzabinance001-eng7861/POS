@@ -147,6 +147,8 @@ private fun subTitle(sub: String): String = when (sub.substringBefore(':')) {
     "customers" -> "Customers"
     "suppliers" -> "Suppliers"
     "buy" -> "Purchase"
+    "serial" -> "IMEI / Warranty"
+    "count" -> "Stock count"
     "expenses" -> "Expenses"
     "returns" -> "Sale returns"
     "vehicles" -> "Vehicles"
@@ -163,6 +165,8 @@ private fun Content(tab: Int, sub: String?, nav: Nav) {
             "customers" -> PartiesTab("customers")
             "suppliers" -> PartiesTab("suppliers")
             "buy" -> BuyScreen()
+            "serial" -> SerialLookupScreen()
+            "count" -> StockCountScreen()
             "expenses" -> ExpensesScreen()
             "returns" -> ReturnsScreen()
             "vehicles" -> VehiclesScreen()
@@ -241,35 +245,38 @@ private fun TopBar(title: String, canGoBack: Boolean, onLeft: () -> Unit, onSett
     }
 }
 
-/** A floating white bar. The chosen tab grows into a teal pill that shows its name. */
+/** A white bar along the bottom. The chosen tab sits in a soft violet rounded square. */
 @Composable
 private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
-    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TABS.forEachIndexed { i, t ->
-                val on = i == selected
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        .clickable { onSelect(i) }
-                        .padding(horizontal = if (on) 14.dp else 10.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        t.icon, contentDescription = t.label, modifier = Modifier.size(22.dp),
-                        tint = if (on) MaterialTheme.colorScheme.onPrimary else muted(),
-                    )
-                    if (on) Text(t.label, color = MaterialTheme.colorScheme.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
-                }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .navigationBarsPadding()
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TABS.forEachIndexed { i, t ->
+            val on = i == selected
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    t.icon, contentDescription = t.label, modifier = Modifier.size(22.dp),
+                    tint = if (on) MaterialTheme.colorScheme.primary else muted(),
+                )
+                Text(
+                    t.label, fontSize = 10.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                    color = if (on) MaterialTheme.colorScheme.primary else muted(), modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }

@@ -126,3 +126,66 @@ fun ProductCard(p: Product, qty: Double, onMinus: () -> Unit, onPlus: () -> Unit
         }
     }
 }
+
+/**
+ * One product in the sale list: photo, name, price and a round stepper. Once something is chosen the
+ * row turns soft violet with a violet outline, so the cart is easy to see at a glance.
+ */
+@Composable
+fun ProductRow(p: Product, qty: Double, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(20.dp)
+    val chosen = qty > 0
+    val out = p.stock <= 0
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .border(1.5.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.alpha(if (out) 0.45f else 1f)) {
+            ProductPhoto(p, Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)))
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(p.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(money(p.price), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(
+                if (out) "Out of stock" else "${qtyText(p.stock)} in stock",
+                color = if (out) Red else muted(), fontSize = 11.sp,
+            )
+        }
+        if (!out) QtyStepper(qty, onMinus, onPlus)
+    }
+}
+
+/** A saved service or a line typed in at the till, with its stepper. */
+@Composable
+fun ServiceRow(emoji: String, name: String, price: Double, qty: Double, note: String, onMinus: () -> Unit, onPlus: () -> Unit, onEdit: (() -> Unit)? = null) {
+    val shape = RoundedCornerShape(20.dp)
+    val chosen = qty > 0
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+            .border(1.5.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) { Text(emoji, fontSize = 26.sp) }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(money(price), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            if (note.isNotBlank()) Text(note, color = muted(), fontSize = 11.sp)
+        }
+        if (onEdit != null) {
+            Text("Edit", color = muted(), fontSize = 12.sp, modifier = Modifier.clickable(onClick = onEdit).padding(horizontal = 8.dp, vertical = 6.dp))
+        }
+        QtyStepper(qty, onMinus, onPlus)
+    }
+}

@@ -36,6 +36,7 @@ fun BuyScreen() {
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var qty by rememberSaveable { mutableStateOf("1") }
     var cost by rememberSaveable { mutableStateOf("") }
+    var serial by rememberSaveable { mutableStateOf("") }
     var paidText by rememberSaveable { mutableStateOf("") }
     val cart = remember { mutableStateListOf<CartLine>() }
     var openPurchase by remember { mutableStateOf<Long?>(null) }
@@ -57,6 +58,7 @@ fun BuyScreen() {
                         NumField("Quantity", qty, { qty = it }, Modifier.weight(1f))
                         NumField("Cost each", cost, { cost = it }, Modifier.weight(1f))
                     }
+                    Field("IMEI / serial numbers (optional)", serial, { serial = it }, placeholder = "Separate several with commas")
                     BigButton("Add to purchase", onClick = {
                         val p = selected
                         val q = qty.toDoubleOrNull() ?: 0.0
@@ -64,7 +66,7 @@ fun BuyScreen() {
                         when {
                             p == null -> toast(context, "Choose a product first.")
                             q <= 0 -> toast(context, "Enter a quantity.")
-                            else -> { cart.add(CartLine(p.id, p.name, q, c, c)); qty = "1" }
+                            else -> { cart.add(CartLine(p.id, p.name, q, c, c, com.inventry.pos.data.LineKind.PRODUCT, serial.trim())); qty = "1"; serial = "" }
                         }
                     }, modifier = Modifier.fillMaxWidth(), tonal = true)
                 }

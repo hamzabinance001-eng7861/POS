@@ -26,10 +26,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventry.pos.data.CartLine
+import com.inventry.pos.data.LineKind
 import com.inventry.pos.data.Store
 import com.inventry.pos.data.fmtDate
+import com.inventry.pos.data.fmtDay
 import com.inventry.pos.data.money
+import com.inventry.pos.data.parties
 import com.inventry.pos.data.qtyText
+import com.inventry.pos.data.receiptHtml
 import com.inventry.pos.data.receiptText
 
 @Composable
@@ -43,7 +47,12 @@ private fun LineTable(lines: List<CartLine>, priceHeader: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
     lines.forEach { l ->
         Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
-            Text(l.name, Modifier.weight(2f), fontSize = 13.sp)
+            Column(Modifier.weight(2f)) {
+                Text(l.name, fontSize = 13.sp)
+                if (l.kind != LineKind.PRODUCT) Text(LineKind.label(l.kind), fontSize = 10.sp, color = Violet, fontWeight = FontWeight.Bold)
+                if (l.serial.isNotBlank()) Text("IMEI/Serial: ${l.serial}", fontSize = 11.sp, color = muted())
+                if (l.warrantyDays > 0) Text("Warranty ${l.warrantyDays} days", fontSize = 11.sp, color = muted())
+            }
             Text(qtyText(l.qty), Modifier.weight(0.8f), fontSize = 13.sp, textAlign = TextAlign.End)
             Text(money(l.price), Modifier.weight(1.2f), fontSize = 13.sp, textAlign = TextAlign.End)
             Text(money(l.amount), Modifier.weight(1.4f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
@@ -80,11 +89,16 @@ fun SaleDialog(saleId: Long, onClose: () -> Unit) {
                     SumLine("Received", money(sale.paid))
                     if (sale.due > 0.004 && !sale.voided) SumLine("Left to pay", money(sale.due), color = MaterialTheme.colorScheme.error)
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     TextButton(onClick = { shareText(context, Store.receiptText(sale.id), "Share receipt") }) { Text("Share") }
-                    if (!sale.voided) TextButton(onClick = { returning = true }) { Text("Return items") }
+                    TextButton(onClick = {
+                        val phone = Store.parties("customers").firstOrNull { it.name.equals(sale.customer, true) }?.phone ?: ""
+                        whatsApp(context, phone, Store.receiptText(sale.id))
+                    }) { Text("WhatsApp") }
+                    TextButton(onClick = { printHtml(context, Store.receiptHtml(sale.id), "Invoice ${sale.no}") }) { Text("Print / PDF") }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (!sale.voided && lines.any { it.productId > 0 }) TextButton(onClick = { returning = true }) { Text("Return items") }
                     if (!sale.voided && sale.due > 0.004) TextButton(onClick = { paying = true }) { Text("Receive payment") }
                     if (!sale.voided) TextButton(onClick = { voiding = true }) { Text("Void", color = MaterialTheme.colorScheme.error) }
                 }
@@ -94,10 +108,9 @@ fun SaleDialog(saleId: Long, onClose: () -> Unit) {
     )
 
     if (returning) ReturnDialog(sale.id) { returning = false }
-
     if (paying) {
-        AmountDialog("Receive payment", "Invoice #${sale.no} · left to pay ${money(sale.due)}", sale.due, { paying = false }) {
-            Store.receivePayment(sale.id, it)
+        AmountDialog("Receive payment", "Invoice #${sale.no} · left to pay ${money(sale.due)}", sale.due, { paying = false }) { amount, how ->
+            Store.receivePayment(sale.id, amount, how)
             paying = false
             toast(context, "Payment saved.")
         }
@@ -117,6 +130,7 @@ fun PurchaseDialog(purchaseId: Long, onClose: () -> Unit) {
     val purchase = remember(Store.rev, purchaseId) { Store.purchase(purchaseId) }
     val lines = remember(Store.rev, purchaseId) { Store.purchaseLines(purchaseId) }
     var paying by remember { mutableStateOf(false) }
+    var returning by remember { mutableStateOf(false) }
     if (purchase == null) return
 
     AlertDialog(
@@ -129,20 +143,23 @@ fun PurchaseDialog(purchaseId: Long, onClose: () -> Unit) {
                 LineTable(lines, "Cost")
                 Column(Modifier.padding(top = 8.dp)) {
                     SumLine("Total", money(purchase.total), big = true)
+                    if (purchase.returned > 0) SumLine("Sent back", "− " + money(purchase.returned))
                     SumLine("Paid", money(purchase.paid))
                     if (purchase.due > 0.004) SumLine("Still owed", money(purchase.due), color = MaterialTheme.colorScheme.error)
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    TextButton(onClick = { returning = true }) { Text("Return to supplier") }
+                    if (purchase.due > 0.004) TextButton(onClick = { paying = true }) { Text("Pay supplier") }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Close") } },
-        dismissButton = {
-            if (purchase.due > 0.004) TextButton(onClick = { paying = true }) { Text("Pay supplier") }
-        },
     )
 
+    if (returning) PurchaseReturnDialog(purchase.id) { returning = false }
     if (paying) {
-        AmountDialog("Pay supplier", "Purchase #${purchase.no} · still owed ${money(purchase.due)}", purchase.due, { paying = false }) {
-            Store.paySupplier(purchase.id, it)
+        AmountDialog("Pay supplier", "Purchase #${purchase.no} · still owed ${money(purchase.due)}", purchase.due, { paying = false }) { amount, how ->
+            Store.paySupplier(purchase.id, amount, how)
             paying = false
             toast(context, "Payment saved.")
         }

@@ -75,6 +75,7 @@ data class Product(
     val barcode: String = "",
     val unit: String = "",
     val hasImage: Boolean = false,
+    val warrantyDays: Int = 0,
 )
 
 /** One line of a sale, purchase or return. For a purchase [price] is the unit cost. */
@@ -84,6 +85,9 @@ data class CartLine(
     val qty: Double,
     val price: Double,
     val cost: Double,
+    val kind: Int = 0,
+    val serial: String = "",
+    val warrantyDays: Int = 0,
 ) {
     val amount: Double get() = qty * price
 }
@@ -116,8 +120,9 @@ data class Purchase(
     val supplier: String,
     val total: Double,
     val paid: Double,
+    val returned: Double = 0.0,
 ) {
-    val due: Double get() = (total - paid).coerceAtLeast(0.0)
+    val due: Double get() = (total - returned - paid).coerceAtLeast(0.0)
 }
 
 /** A customer or a supplier. [balance] is what they owe you, or what you owe them. */
@@ -239,3 +244,41 @@ fun plain(v: Double): String = if (v == Math.floor(v) && kotlin.math.abs(v) < 1e
 
 fun fmtDate(ms: Long): String = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault()).format(Date(ms))
 fun fmtDay(ms: Long): String = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(ms))
+
+/** What a line on a sale is: a stocked product, a saved service, or an item the shopkeeper typed in. */
+object LineKind {
+    const val PRODUCT = 0
+    const val SERVICE = 1
+    const val CUSTOM = 2
+
+    fun label(kind: Int): String = when (kind) {
+        SERVICE -> "Service"
+        CUSTOM -> "Custom"
+        else -> "Item"
+    }
+}
+
+/** A repair or other service the shop sells, with its usual price. It never touches stock. */
+data class ServiceItem(val id: Long, val name: String, val price: Double, val cost: Double)
+
+/** A sale that was put on hold; [json] is the cart as the sale screen wrote it. */
+data class HeldSale(val id: Long, val date: Long, val customer: String, val json: String, val total: Double, val lines: Int)
+
+/** One place an IMEI or serial number turned up. */
+data class SerialHit(
+    val bought: Boolean,
+    val product: String,
+    val serial: String,
+    val date: Long,
+    val party: String,
+    val invoiceNo: Int,
+    val warrantyDays: Int,
+) {
+    /** Warranty ends this many days after the sale; null when there is none. */
+    val warrantyUntil: Long? get() = if (!bought && warrantyDays > 0) date + warrantyDays * 86_400_000L else null
+}
+
+data class MethodRow(val method: String, val received: Double, val paidOut: Double)
+data class AdjustmentRow(val date: Long, val product: String, val delta: Double, val reason: String)
+
+val PAYMENT_METHODS = listOf("Cash", "Card", "Bank transfer", "EasyPaisa", "JazzCash")

@@ -85,3 +85,18 @@ fun ChoiceField(label: String, options: List<Pair<Long, String>>, selected: Long
         }
     }
 }
+
+private var printView: android.webkit.WebView? = null
+
+/** Opens Android's print screen for an HTML page: print on a nearby printer or choose "Save as PDF". */
+fun printHtml(context: Context, html: String, jobName: String) {
+    val web = android.webkit.WebView(context)
+    web.webViewClient = object : android.webkit.WebViewClient() {
+        override fun onPageFinished(view: android.webkit.WebView, url: String?) {
+            val manager = context.getSystemService(Context.PRINT_SERVICE) as android.print.PrintManager
+            manager.print(jobName, view.createPrintDocumentAdapter(jobName), android.print.PrintAttributes.Builder().build())
+        }
+    }
+    printView = web // keep it alive until the print screen has taken the page
+    web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
+}

@@ -36,7 +36,7 @@ fun ReturnDialog(saleId: Long, onClose: () -> Unit) {
     val context = LocalContext.current
     val sale = remember(saleId, Store.rev) { Store.sale(saleId) }
     val items = remember(saleId, Store.rev) {
-        Store.saleLines(saleId).groupBy { it.productId }.map { (pid, ls) ->
+        Store.saleLines(saleId).filter { it.productId > 0 }.groupBy { it.productId }.map { (pid, ls) ->
             val sold = ls.sumOf { it.qty }
             Triple(ls.first(), sold, Store.returnedQty(saleId, pid))
         }
@@ -98,6 +98,7 @@ fun ReturnDialog(saleId: Long, onClose: () -> Unit) {
 fun ReturnsScreen() {
     val sales = remember(Store.rev) { Store.sales(40).filter { !it.voided } }
     val returns = remember(Store.rev) { Store.saleReturns() }
+    val supplierReturns = remember(Store.rev) { Store.purchaseReturns() }
     var picking by remember { mutableStateOf<Long?>(null) }
 
     TwoPane(
@@ -120,8 +121,79 @@ fun ReturnsScreen() {
                     )
                 }
             }
+            AppCard {
+                Heading("Returned to suppliers")
+                Text("Open a purchase (Parties → Supplier, or Purchase history) and choose “Return to supplier”.", color = muted(), fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp, bottom = 4.dp))
+                if (supplierReturns.isEmpty()) EmptyState("None yet.")
+                supplierReturns.forEach { r ->
+                    ListRow(
+                        "Purchase #${r.saleNo} · ${r.customer}", fmtDate(r.date), money(r.amount),
+                        if (r.refund > 0.004) "Refund ${money(r.refund)}" to Green else null,
+                    )
+                }
+            }
         },
     )
 
     picking?.let { ReturnDialog(it) { picking = null } }
+}
+
+/** Choose how many of each item on a purchase are going back to the supplier. */
+@Composable
+fun PurchaseReturnDialog(purchaseId: Long, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val purchase = remember(purchaseId, Store.rev) { Store.purchase(purchaseId) }
+    val items = remember(purchaseId, Store.rev) {
+        Store.purchaseLines(purchaseId).filter { it.productId > 0 }.groupBy { it.productId }.map { (pid, ls) ->
+            Triple(ls.first(), ls.sumOf { it.qty }, Store.purchaseReturnedQty(purchaseId, pid))
+        }
+    }
+    val qtys = remember { mutableStateMapOf<Long, String>() }
+    var note by remember { mutableStateOf("") }
+    if (purchase == null) return
+
+    AlertDialog(
+        onDismissRequest = onClose,
+        shape = RoundedCornerShape(24.dp),
+        title = { Text("Return from purchase #${purchase.no}", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "The goods leave your stock and what you owe ${purchase.supplier} goes down. Anything you had already paid for them is refunded to you.",
+                    color = muted(), fontSize = 13.sp,
+                )
+                items.forEach { (line, bought, back) ->
+                    val left = bought - back
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(line.name, fontWeight = FontWeight.SemiBold)
+                            Text("Bought ${qtyText(bought)} · returned ${qtyText(back)} · ${money(line.price)} each", color = muted(), fontSize = 12.sp)
+                        }
+                        if (left > 0) {
+                            NumField("Return", qtys[line.productId] ?: "", { qtys[line.productId] = it }, Modifier.weight(0.7f))
+                        } else {
+                            Text("All returned", color = muted(), fontSize = 12.sp)
+                        }
+                    }
+                }
+                Field("Reason (optional)", note, { note = it })
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val picked = items.mapNotNull { (line, _, _) ->
+                    val q = qtys[line.productId]?.toDoubleOrNull() ?: 0.0
+                    if (q > 0) CartLine(line.productId, line.name, q, line.price, line.cost) else null
+                }
+                val r = Store.createPurchaseReturn(purchaseId, picked, note)
+                if (r.error != null) {
+                    toast(context, r.error)
+                } else {
+                    toast(context, "Return saved.")
+                    onClose()
+                }
+            }) { Text("Save return") }
+        },
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+    )
 }

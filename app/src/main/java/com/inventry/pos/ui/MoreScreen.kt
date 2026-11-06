@@ -22,6 +22,8 @@ private val MONEY = listOf(
     Entry("🧾", "Tax report", Color(0xFF64748B), "reports:7"),
 )
 private val BUSINESS = listOf(
+    Entry("🔎", "IMEI / Warranty", Color(0xFF7B6BDF), "serial"),
+    Entry("📋", "Stock count", Color(0xFF14B8A6), "count"),
     Entry("🚚", "Vehicles", Color(0xFF14B8A6), "vehicles"),
     Entry("📊", "Reports", Color(0xFFEC4899), "reports:0"),
     Entry("📈", "Profit", Indigo, "reports:4"),

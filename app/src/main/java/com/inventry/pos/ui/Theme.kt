@@ -15,47 +15,47 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-// The accent colours keep their old names so every screen picks up the new palette:
-// "Indigo" is now the deep teal, "Violet" a lighter teal, and "Red" the coral used for Purchase.
-val Indigo = Color(0xFF0B5D75)
-val Violet = Color(0xFF1A8CA8)
-val Green = Color(0xFF2E9E5B)
-val Amber = Color(0xFFD98A12)
-val Red = Color(0xFFE5484D)
+// Soft violet on light grey, like the Dribbble POS designs. The accent colours keep their old
+// names so every screen picks up the palette: Indigo = main violet, Violet = lighter violet.
+val Indigo = Color(0xFF7B6BDF)
+val Violet = Color(0xFF9A8CEB)
+val Green = Color(0xFF2FB174)
+val Amber = Color(0xFFE59A2B)
+val Red = Color(0xFFEF5A6F)
 
-/** The deep teal gradient used on the home summary card. */
-fun heroBrush(): Brush = Brush.linearGradient(listOf(Color(0xFF084A5E), Indigo, Color(0xFF127893)))
+/** The violet gradient used on the home summary card. */
+fun heroBrush(): Brush = Brush.linearGradient(listOf(Color(0xFF6A59D6), Indigo, Color(0xFF9585EE)))
 
 private val LightColors = lightColorScheme(
     primary = Indigo,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD6E9F1),
-    onPrimaryContainer = Color(0xFF063A4A),
+    primaryContainer = Color(0xFFECE8FB),
+    onPrimaryContainer = Color(0xFF2B2460),
     secondary = Red,
-    background = Color(0xFFE9F3F8),
-    onBackground = Color(0xFF0F2A35),
+    background = Color(0xFFF4F4F8),
+    onBackground = Color(0xFF16142E),
     surface = Color.White,
-    onSurface = Color(0xFF0F2A35),
-    surfaceVariant = Color(0xFFE1EDF3),
-    onSurfaceVariant = Color(0xFF5B7280),
-    outline = Color(0xFFC9DCE6),
+    onSurface = Color(0xFF16142E),
+    surfaceVariant = Color(0xFFEFEFF6),
+    onSurfaceVariant = Color(0xFF8A8AA3),
+    outline = Color(0xFFE6E4F2),
     error = Red,
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF55B7D3),
-    onPrimary = Color(0xFF04303D),
-    primaryContainer = Color(0xFF0F4558),
-    onPrimaryContainer = Color(0xFFD6E9F1),
-    secondary = Color(0xFFFF7A7F),
-    background = Color(0xFF0B1A22),
-    onBackground = Color(0xFFE3EFF5),
-    surface = Color(0xFF13262F),
-    onSurface = Color(0xFFE3EFF5),
-    surfaceVariant = Color(0xFF1B3340),
-    onSurfaceVariant = Color(0xFF9DB4C0),
-    outline = Color(0xFF2B4757),
-    error = Color(0xFFFF7A7F),
+    primary = Color(0xFFA99DF5),
+    onPrimary = Color(0xFF1E1850),
+    primaryContainer = Color(0xFF352F6B),
+    onPrimaryContainer = Color(0xFFECE8FB),
+    secondary = Color(0xFFFF8A9A),
+    background = Color(0xFF121120),
+    onBackground = Color(0xFFEDEBFA),
+    surface = Color(0xFF1C1A31),
+    onSurface = Color(0xFFEDEBFA),
+    surfaceVariant = Color(0xFF272446),
+    onSurfaceVariant = Color(0xFFA6A4C2),
+    outline = Color(0xFF34315A),
+    error = Color(0xFFFF8A9A),
 )
 
 private val AppShapes = Shapes(
@@ -73,14 +73,8 @@ fun PosTheme(content: @Composable () -> Unit) {
     )
 }
 
-/** The soft blue-to-white backdrop behind every screen. */
+/** The plain light-grey page behind every screen. */
 @Composable
 fun AppBackground(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val brush = if (dark) {
-        Brush.verticalGradient(listOf(Color(0xFF0F2530), Color(0xFF0A161D)))
-    } else {
-        Brush.verticalGradient(listOf(Color(0xFFD5E9F3), Color(0xFFF1F8FB)))
-    }
-    Box(modifier.fillMaxSize().background(brush)) { content() }
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { content() }
 }

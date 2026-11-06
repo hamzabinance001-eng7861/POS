@@ -54,6 +54,8 @@ fun ProductsScreen() {
     var category by rememberSaveable { mutableStateOf("") }
     var barcode by rememberSaveable { mutableStateOf("") }
     var unit by rememberSaveable { mutableStateOf("") }
+    var warranty by rememberSaveable { mutableStateOf("") }
+    var photoSearch by remember { mutableStateOf(false) }
     var newImage by remember { mutableStateOf<ByteArray?>(null) }
     var removeImage by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Product?>(null) }
@@ -61,7 +63,7 @@ fun ProductsScreen() {
 
     fun clearForm() {
         editId = null; name = ""; price = ""; cost = ""; stock = ""; low = "5"
-        category = ""; barcode = ""; unit = ""; newImage = null; removeImage = false
+        category = ""; barcode = ""; unit = ""; warranty = ""; newImage = null; removeImage = false
     }
 
     val pickImage = rememberImagePicker { newImage = it; removeImage = false }
@@ -102,6 +104,7 @@ fun ProductsScreen() {
                         Field("Barcode / code", barcode, { barcode = it }, Modifier.weight(1.3f))
                         Field("Unit", unit, { unit = it }, Modifier.weight(1f), placeholder = "bag, pc, ft")
                     }
+                    NumField("Warranty (days, optional)", warranty, { warranty = it }, Modifier.fillMaxWidth(), placeholder = "e.g. 30 for a one-month warranty")
                     BigButton(
                         if (editId == null) "Add product" else "Save changes",
                         onClick = {
@@ -110,6 +113,7 @@ fun ProductsScreen() {
                                 price.toDoubleOrNull() ?: 0.0, cost.toDoubleOrNull() ?: 0.0,
                                 stock.toDoubleOrNull() ?: 0.0, low.toDoubleOrNull() ?: 0.0,
                                 category, barcode, unit, newImage, removeImage,
+                                warrantyDays = warranty.toIntOrNull() ?: 0,
                             )
                             if (err != null) toast(context, err) else { toast(context, "Saved."); showForm = false; clearForm() }
                         },
@@ -122,6 +126,7 @@ fun ProductsScreen() {
         OnePane {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SearchField(search, { search = it }, "Search items…", Modifier.weight(1f))
+                CircleButton("📷", { photoSearch = true }, filled = false, size = 48.dp)
                 BigButton("＋ Add Item", onClick = { clearForm(); showForm = true })
             }
             if (categories.isNotEmpty()) {
@@ -140,7 +145,8 @@ fun ProductsScreen() {
                             .clickable {
                                 editId = p.id; name = p.name; price = plain(p.price); cost = plain(p.cost)
                                 stock = plain(p.stock); low = plain(p.low); category = p.category
-                                barcode = p.barcode; unit = p.unit; newImage = null; removeImage = false
+                                barcode = p.barcode; unit = p.unit; warranty = if (p.warrantyDays > 0) p.warrantyDays.toString() else ""
+                                newImage = null; removeImage = false
                                 showForm = true
                             }
                             .padding(vertical = 10.dp),
@@ -173,6 +179,8 @@ fun ProductsScreen() {
             }
         }
     }
+
+    if (photoSearch) ImageSearchDialog(onPick = { p -> search = p.name }, onClose = { photoSearch = false })
 
     deleting?.let { p ->
         ConfirmDialog("Delete ${p.name}?", "This cannot be undone.", "Delete", { deleting = null }) {

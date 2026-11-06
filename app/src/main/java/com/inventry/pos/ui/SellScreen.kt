@@ -2,19 +2,24 @@ package com.inventry.pos.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,7 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,15 +41,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inventry.pos.data.CartLine
+import com.inventry.pos.data.LineKind
+import com.inventry.pos.data.Product
 import com.inventry.pos.data.Sale
-import com.inventry.pos.data.Settings
+import com.inventry.pos.data.ServiceItem
 import com.inventry.pos.data.Store
 import com.inventry.pos.data.fmtDate
 import com.inventry.pos.data.money
-import com.inventry.pos.data.parties
 import com.inventry.pos.data.plain
 import com.inventry.pos.data.qtyText
-import com.inventry.pos.data.vehicles
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** One line in the sale being built. Products use their id as the key; services and typed-in lines use negative keys. */
+internal data class SaleItem(
+    val key: Long,
+    val kind: Int,
+    val productId: Long,
+    val name: String,
+    val qty: Double,
+    val priceText: String,
+    val cost: Double,
+    val serial: String = "",
+    val warranty: Int = 0,
+) {
+    val price: Double get() = priceText.toDoubleOrNull() ?: 0.0
+    val amount: Double get() = qty * price
+
+    fun toLine() = CartLine(if (kind == LineKind.PRODUCT) productId else 0L, name, qty, price, cost, kind, serial, warranty)
+}
 
 /** The lines typed so far on a purchase, each with a Remove link. */
 @Composable
@@ -58,11 +83,12 @@ fun CartRows(lines: List<CartLine>, priceWord: String, onRemove: (Int) -> Unit) 
             Column(Modifier.weight(1f)) {
                 Text(l.name, fontWeight = FontWeight.SemiBold)
                 Text("${qtyText(l.qty)} × ${money(l.price)} $priceWord", color = muted(), fontSize = 12.sp)
+                if (l.serial.isNotBlank()) Text("IMEI/Serial: ${l.serial}", color = muted(), fontSize = 11.sp)
             }
             Text(money(l.amount), fontWeight = FontWeight.Bold)
             TextButton(onClick = { onRemove(i) }) { Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
     }
 }
 
@@ -73,121 +99,353 @@ fun salePill(s: Sale): Pair<String, Color> = when {
     else -> "Unpaid" to Red
 }
 
+/** Rounded grey switch between a few options; the chosen one is a white pill. */
+@Composable
+internal fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEachIndexed { i, label ->
+            val on = i == selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (on) MaterialTheme.colorScheme.surface else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, fontSize = 13.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) MaterialTheme.colorScheme.primary else muted())
+            }
+        }
+    }
+}
+
+private fun encodeItems(cart: List<SaleItem>): String {
+    val arr = JSONArray()
+    cart.forEach {
+        arr.put(JSONObject().apply {
+            put("key", it.key); put("kind", it.kind); put("productId", it.productId); put("name", it.name)
+            put("qty", it.qty); put("price", it.priceText); put("cost", it.cost); put("serial", it.serial); put("warranty", it.warranty)
+        })
+    }
+    return arr.toString()
+}
+
+private fun decodeItems(json: String): List<SaleItem> = try {
+    val arr = JSONArray(json)
+    (0 until arr.length()).map {
+        val o = arr.getJSONObject(it)
+        SaleItem(
+            o.getLong("key"), o.getInt("kind"), o.getLong("productId"), o.getString("name"), o.getDouble("qty"),
+            o.getString("price"), o.getDouble("cost"), o.optString("serial", ""), o.optInt("warranty", 0),
+        )
+    }
+} catch (e: Exception) {
+    emptyList()
+}
+
 /**
- * The Sell tab. "New sale" is a grid of products to tap; the cart bar at the bottom leads to the
- * checkout page. "History" lists every invoice.
+ * The Sell tab. "New sale" has three sections: Products (tap to add, search, search by photo),
+ * Services (saved repairs and other services) and Custom (type any name and price). A violet bar at
+ * the bottom leads to checkout. "Held" are parked sales; "History" lists every invoice.
  */
 @Composable
 fun SellScreen() {
+    val context = LocalContext.current
     val products = remember(Store.rev) { Store.products() }
     val categories = remember(Store.rev) { Store.categories() }
+    val services = remember(Store.rev) { Store.services() }
     val history = remember(Store.rev) { Store.sales(60) }
+    val held = remember(Store.rev) { Store.heldSales() }
 
-    var page by rememberSaveable { mutableStateOf(0) } // 0 = new sale, 1 = history
+    var page by rememberSaveable { mutableStateOf(0) }       // 0 new sale, 1 held, 2 history
+    var section by rememberSaveable { mutableStateOf(0) }    // 0 products, 1 services, 2 custom
     var checkout by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf("") }
-    val cart = remember { mutableStateMapOf<Long, Double>() }
-    val prices = remember { mutableStateMapOf<Long, String>() }
+    val cart = remember { mutableStateListOf<SaleItem>() }
+    var nextCustomKey by remember { mutableStateOf(-1_000_000L) }
     var openSale by remember { mutableStateOf<Long?>(null) }
-    val context = LocalContext.current
+    var doneSale by remember { mutableStateOf<Long?>(null) }
+    var editService by remember { mutableStateOf<ServiceItem?>(null) }
+    var newService by remember { mutableStateOf(false) }
+    var photoSearch by remember { mutableStateOf(false) }
 
-    fun add(id: Long) {
-        val p = products.firstOrNull { it.id == id } ?: return
-        val now = cart[id] ?: 0.0
-        if (now + 1 > p.stock) toast(context, "Only ${qtyText(p.stock)} of ${p.name} in stock.") else cart[id] = now + 1
-    }
+    fun qtyOf(key: Long) = cart.firstOrNull { it.key == key }?.qty ?: 0.0
 
-    fun remove(id: Long) {
-        val now = cart[id] ?: return
-        if (now - 1 <= 0.0) { cart.remove(id); prices.remove(id) } else cart[id] = now - 1
-    }
-
-    val lines = cart.entries.mapNotNull { (pid, q) ->
-        products.firstOrNull { it.id == pid }?.let { p ->
-            CartLine(pid, p.name, q, prices[pid]?.toDoubleOrNull() ?: p.price, p.cost)
+    fun addProduct(p: Product) {
+        val i = cart.indexOfFirst { it.key == p.id }
+        val now = if (i >= 0) cart[i].qty else 0.0
+        when {
+            now + 1 > p.stock -> toast(context, "Only ${qtyText(p.stock)} of ${p.name} in stock.")
+            i >= 0 -> cart[i] = cart[i].copy(qty = now + 1)
+            else -> cart.add(SaleItem(p.id, LineKind.PRODUCT, p.id, p.name, 1.0, plain(p.price), p.cost, "", p.warrantyDays))
         }
     }
 
-    // Taking the last item out of the cart leaves the checkout page.
-    LaunchedEffect(lines.isEmpty()) { if (lines.isEmpty()) checkout = false }
+    fun addService(s: ServiceItem) {
+        val key = -s.id
+        val i = cart.indexOfFirst { it.key == key }
+        if (i >= 0) cart[i] = cart[i].copy(qty = cart[i].qty + 1)
+        else cart.add(SaleItem(key, LineKind.SERVICE, 0L, s.name, 1.0, plain(s.price), s.cost))
+    }
 
-    if (checkout && lines.isNotEmpty()) {
+    fun plus(key: Long) {
+        val it = cart.firstOrNull { x -> x.key == key } ?: return
+        if (it.kind == LineKind.PRODUCT) {
+            products.firstOrNull { p -> p.id == it.productId }?.let { p -> addProduct(p) }
+        } else {
+            val i = cart.indexOf(it)
+            cart[i] = it.copy(qty = it.qty + 1)
+        }
+    }
+
+    fun minus(key: Long) {
+        val i = cart.indexOfFirst { it.key == key }
+        if (i < 0) return
+        if (cart[i].qty - 1 <= 0.0) cart.removeAt(i) else cart[i] = cart[i].copy(qty = cart[i].qty - 1)
+    }
+
+    // Taking the last item out of the cart leaves the checkout page.
+    LaunchedEffect(cart.isEmpty()) { if (cart.isEmpty()) checkout = false }
+
+    if (checkout && cart.isNotEmpty()) {
         BackHandler { checkout = false }
         CheckoutPage(
-            lines = lines,
-            prices = prices,
+            cart = cart,
             onBack = { checkout = false },
-            onPlus = { add(it) },
-            onMinus = { remove(it) },
-            onDelete = { cart.remove(it); prices.remove(it) },
-            onPrice = { id, text -> prices[id] = text },
-            onSaved = { cart.clear(); prices.clear(); checkout = false; openSale = it },
+            onChange = { key, change ->
+                val i = cart.indexOfFirst { it.key == key }
+                if (i >= 0) cart[i] = change(cart[i])
+            },
+            onPlus = { plus(it) },
+            onMinus = { minus(it) },
+            onRemove = { key -> cart.removeAll { it.key == key } },
+            onHold = { customer, total ->
+                Store.holdSale(customer, encodeItems(cart.toList()), total, cart.size)
+                cart.clear()
+                toast(context, "Sale put on hold.")
+            },
+            onSaved = { id -> cart.clear(); checkout = false; doneSale = id },
         )
     } else {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Chip("New sale", page == 0) { page = 0 }
-                Chip("History", page == 1) { page = 1 }
+                Chip("Held${if (held.isEmpty()) "" else " (${held.size})"}", page == 1) { page = 1 }
+                Chip("History", page == 2) { page = 2 }
             }
-            if (page == 0) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SearchField(search, { search = it }, "Search name, barcode or category…")
-                    if (categories.isNotEmpty()) {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Chip("All", category.isEmpty()) { category = "" }
-                            categories.forEach { c -> Chip(c, category == c) { category = c } }
+
+            when (page) {
+                0 -> {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Segmented(listOf("Products", "Services", "Custom"), section) { section = it }
+                    }
+                    when (section) {
+                        0 -> {
+                            Row(
+                                Modifier.padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                SearchField(search, { search = it }, "Search name, barcode or category…", Modifier.weight(1f))
+                                Box(
+                                    Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer).clickable { photoSearch = true },
+                                    contentAlignment = Alignment.Center,
+                                ) { Text("📷", fontSize = 20.sp) }
+                            }
+                            if (categories.isNotEmpty()) {
+                                Row(
+                                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Chip("All", category.isEmpty()) { category = "" }
+                                    categories.forEach { c -> Chip(c, category == c) { category = c } }
+                                }
+                            }
+                            val shown = products.filter {
+                                (category.isEmpty() || it.category == category) &&
+                                    (search.isBlank() || it.name.contains(search.trim(), true) || it.barcode.contains(search.trim(), true) || it.category.contains(search.trim(), true))
+                            }
+                            if (products.isEmpty()) {
+                                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    EmptyState("No products yet.\nAdd some in Items, or use Services and Custom to sell without stock.")
+                                }
+                            } else {
+                                LazyColumn(
+                                    Modifier.weight(1f),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    items(shown, key = { it.id }) { p ->
+                                        ProductRow(p, qtyOf(p.id), onMinus = { minus(p.id) }, onPlus = { addProduct(p) })
+                                    }
+                                }
+                            }
+                        }
+                        1 -> {
+                            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Services", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                    Text("Repairs and other work. No stock.", color = muted(), fontSize = 12.sp)
+                                }
+                                BigButton("＋ New", onClick = { newService = true })
+                            }
+                            if (services.isEmpty()) {
+                                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    EmptyState("No services saved yet.\nTap “New” to add one, e.g. Screen replacement.")
+                                }
+                            } else {
+                                LazyColumn(
+                                    Modifier.weight(1f),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    items(services, key = { it.id }) { s ->
+                                        ServiceRow(
+                                            "🛠️", s.name, s.price, qtyOf(-s.id), "",
+                                            onMinus = { minus(-s.id) }, onPlus = { addService(s) }, onEdit = { editService = s },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            CustomItemForm(onAdd = { name, qty, price, cost ->
+                                nextCustomKey -= 1
+                                cart.add(SaleItem(nextCustomKey, LineKind.CUSTOM, 0L, name, qty, plain(price), cost))
+                                toast(context, "$name added.")
+                            }, modifier = Modifier.weight(1f))
                         }
                     }
-                }
-                val shown = products.filter {
-                    (category.isEmpty() || it.category == category) &&
-                        (search.isBlank() || it.name.contains(search.trim(), true) || it.barcode.contains(search.trim(), true) || it.category.contains(search.trim(), true))
-                }
-                if (products.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        EmptyState("No products yet.\nGo to Items and add your first product.")
+
+                    if (cart.isNotEmpty()) {
+                        CartBar(count = cart.sumOf { it.qty }, lines = cart.size, total = cart.sumOf { it.amount }) { checkout = true }
                     }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 150.dp),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(shown, key = { it.id }) { p ->
-                            ProductCard(p, cart[p.id] ?: 0.0, onMinus = { remove(p.id) }, onPlus = { add(p.id) })
+                }
+                1 -> HeldList(held, modifier = Modifier.weight(1f),
+                    onResume = { h ->
+                        val back = decodeItems(h.json)
+                        if (back.isEmpty()) {
+                            toast(context, "Could not open that sale.")
+                        } else {
+                            cart.clear(); cart.addAll(back)
+                            Store.deleteHeld(h.id)
+                            page = 0; checkout = true
                         }
-                    }
-                }
-                if (lines.isNotEmpty()) {
-                    val count = lines.sumOf { it.qty }
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text("${qtyText(count)} item${if (count == 1.0) "" else "s"}", color = muted(), fontSize = 12.sp)
-                            Text(money(lines.sumOf { it.amount }), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                        }
-                        BigButton("Next", onClick = { checkout = true }, modifier = Modifier.padding(end = 0.dp))
-                    }
-                }
-            } else {
-                Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp)) {
-                    HistoryList(history) { openSale = it }
-                }
+                    },
+                    onDelete = { Store.deleteHeld(it.id) })
+                else -> Column(Modifier.weight(1f).fillMaxWidth()) { HistoryList(history) { openSale = it } }
             }
         }
     }
 
     openSale?.let { SaleDialog(it) { openSale = null } }
+    doneSale?.let { id -> SaleDoneDialog(id, onInvoice = { openSale = id; doneSale = null }, onClose = { doneSale = null }) }
+    if (newService) ServiceDialog(null) { newService = false }
+    editService?.let { s -> ServiceDialog(s) { editService = null } }
+    if (photoSearch) {
+        ImageSearchDialog(onPick = { p -> addProduct(p); section = 0 }, onClose = { photoSearch = false })
+    }
+}
+
+/** The violet pill at the bottom: how many items, the total, and the way on to checkout. */
+@Composable
+private fun CartBar(count: Double, lines: Int, total: Double, onNext: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(MaterialTheme.colorScheme.primary)
+            .clickable(onClick = onNext)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Proceed to checkout", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(
+            "$lines line${if (lines == 1) "" else "s"}  ·  ${money(total)}",
+            color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+        )
+        Text("  →", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    }
+}
+
+/** Sell something that is not in the product list: type its name, quantity and price. */
+@Composable
+private fun CustomItemForm(onAdd: (String, Double, Double, Double) -> Unit, modifier: Modifier) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var qty by rememberSaveable { mutableStateOf("1") }
+    var price by rememberSaveable { mutableStateOf("") }
+    var cost by rememberSaveable { mutableStateOf("") }
+    val context = LocalContext.current
+
+    Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        AppCard {
+            Text("Custom item", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(
+                "For anything not in your product list: a part you bought on the spot, a repair you will name yourself, a one-off charge.",
+                color = muted(), fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Field("What is it?", name, { name = it }, placeholder = "e.g. Display replacement – Samsung A12")
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    NumField("Quantity", qty, { qty = it }, Modifier.weight(1f))
+                    NumField("Price", price, { price = it }, Modifier.weight(1f))
+                }
+                NumField("What it cost you (optional)", cost, { cost = it }, Modifier.fillMaxWidth(), placeholder = "For profit reports")
+                BigButton("Add to sale", onClick = {
+                    val q = qty.toDoubleOrNull() ?: 0.0
+                    when {
+                        name.isBlank() -> toast(context, "Type a name for the item.")
+                        q <= 0 -> toast(context, "Enter a quantity.")
+                        else -> {
+                            onAdd(name.trim(), q, price.toDoubleOrNull() ?: 0.0, cost.toDoubleOrNull() ?: 0.0)
+                            name = ""; qty = "1"; price = ""; cost = ""
+                        }
+                    }
+                }, modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeldList(
+    held: List<com.inventry.pos.data.HeldSale>,
+    modifier: Modifier,
+    onResume: (com.inventry.pos.data.HeldSale) -> Unit,
+    onDelete: (com.inventry.pos.data.HeldSale) -> Unit,
+) {
+    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        AppCard {
+            Text("Held sales", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("Sales you put on hold at checkout. Open one to carry on.", color = muted(), fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+            if (held.isEmpty()) EmptyState("Nothing on hold.")
+            held.forEachIndexed { i, h ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(h.customer.ifBlank { "Walk-in customer" }, fontWeight = FontWeight.SemiBold)
+                        Text("${h.lines} line${if (h.lines == 1) "" else "s"} · ${fmtDate(h.date)}", color = muted(), fontSize = 12.sp)
+                    }
+                    Text(money(h.total), fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { onResume(h) }) { Text("Open") }
+                    TextButton(onClick = { onDelete(h) }) { Text("✕", color = MaterialTheme.colorScheme.error) }
+                }
+                if (i < held.size - 1) HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            }
+        }
+    }
 }
 
 @Composable
@@ -201,98 +459,40 @@ private fun HistoryList(history: List<Sale>, onOpen: (Long) -> Unit) {
     }
 }
 
-/** The second step: who is buying, discount, tax, extra charge, and how much was received. */
+/** Add, change or delete a saved service. */
 @Composable
-private fun CheckoutPage(
-    lines: List<CartLine>,
-    prices: Map<Long, String>,
-    onBack: () -> Unit,
-    onPlus: (Long) -> Unit,
-    onMinus: (Long) -> Unit,
-    onDelete: (Long) -> Unit,
-    onPrice: (Long, String) -> Unit,
-    onSaved: (Long) -> Unit,
-) {
+private fun ServiceDialog(service: ServiceItem?, onClose: () -> Unit) {
     val context = LocalContext.current
-    val customerNames = remember(Store.rev) { Store.parties("customers").map { it.name } }
-    val vehicles = remember(Store.rev) { Store.vehicles(onlyActive = true) }
+    var name by remember { mutableStateOf(service?.name ?: "") }
+    var price by remember { mutableStateOf(service?.let { plain(it.price) } ?: "") }
+    var cost by remember { mutableStateOf(service?.let { if (it.cost > 0) plain(it.cost) else "" } ?: "") }
 
-    var customer by rememberSaveable { mutableStateOf("") }
-    var discount by rememberSaveable { mutableStateOf("") }
-    var tax by rememberSaveable { mutableStateOf(if (Settings.taxRate > 0) plain(Settings.taxRate) else "") }
-    var chargeLabel by rememberSaveable { mutableStateOf("") }
-    var charge by rememberSaveable { mutableStateOf("") }
-    var vehicleId by rememberSaveable { mutableStateOf(0L) }
-    var received by rememberSaveable { mutableStateOf("") }
-
-    val sub = lines.sumOf { it.amount }
-    val disc = (discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, sub)
-    val rate = tax.toDoubleOrNull() ?: 0.0
-    val taxAmount = (sub - disc) * rate / 100.0
-    val extra = charge.toDoubleOrNull() ?: 0.0
-    val total = sub - disc + taxAmount + extra
-    val paid = if (received.isBlank()) total else (received.toDoubleOrNull() ?: 0.0).coerceIn(0.0, total)
-    val label = chargeLabel.trim().ifEmpty { Settings.chargeLabel }
-
-    OnePane {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CircleButton("←", onBack, filled = false, size = 38.dp)
-            Text("Checkout", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        }
-
-        AppCard {
-            Heading("Items")
-            lines.forEachIndexed { i, l ->
-                Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(l.name, fontWeight = FontWeight.SemiBold)
-                        Text(money(l.amount), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    NumField("Price", prices[l.productId] ?: plain(l.price), { onPrice(l.productId, it) }, Modifier.weight(0.8f))
-                    Column(Modifier.padding(start = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        QtyStepper(l.qty, { onMinus(l.productId) }, { onPlus(l.productId) })
-                        TextButton(onClick = { onDelete(l.productId) }) { Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
+    AlertDialog(
+        onDismissRequest = onClose,
+        shape = RoundedCornerShape(24.dp),
+        title = { Text(if (service == null) "New service" else "Edit service", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Field("Service name", name, { name = it }, placeholder = "e.g. Screen replacement")
+                NumField("Usual price", price, { price = it }, Modifier.fillMaxWidth())
+                NumField("Your cost (optional)", cost, { cost = it }, Modifier.fillMaxWidth(), placeholder = "Parts, for profit reports")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val err = Store.saveService(service?.id, name, price.toDoubleOrNull() ?: 0.0, cost.toDoubleOrNull() ?: 0.0)
+                if (err != null) toast(context, err) else { toast(context, "Saved."); onClose() }
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (service != null) {
+                    TextButton(onClick = { Store.deleteService(service.id); toast(context, "Deleted."); onClose() }) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 }
-                if (i < lines.size - 1) HorizontalDivider(Modifier.padding(top = 4.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                TextButton(onClick = onClose) { Text("Cancel") }
             }
-        }
-
-        AppCard {
-            Heading("Customer & charges")
-            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                NameField("Customer", customer, { customer = it }, customerNames, placeholder = "Walk-in customer")
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    NumField("Discount", discount, { discount = it }, Modifier.weight(1f))
-                    NumField("Tax %", tax, { tax = it }, Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Field("Extra charge is called", chargeLabel, { chargeLabel = it.take(40) }, Modifier.weight(1.3f), placeholder = Settings.chargeLabel)
-                    NumField("Extra charge", charge, { charge = it }, Modifier.weight(1f))
-                }
-                if (vehicles.isNotEmpty()) {
-                    ChoiceField("Delivered on", listOf(0L to "No vehicle") + vehicles.map { it.id to it.name }, vehicleId) { vehicleId = it }
-                }
-                NumField("Received", received, { received = it }, Modifier.fillMaxWidth(), placeholder = "Full amount")
-            }
-        }
-
-        AppCard {
-            SumLine("Subtotal", money(sub))
-            if (disc > 0) SumLine("Discount", "− " + money(disc))
-            if (taxAmount > 0) SumLine("Tax (${qtyText(rate)}%)", money(taxAmount))
-            if (extra > 0) SumLine(label, money(extra))
-            SumLine("Total", money(total), big = true)
-            if (total - paid > 0.004) SumLine("Left to pay", money(total - paid), color = MaterialTheme.colorScheme.error)
-            BigButton("Save sale", onClick = {
-                val r = Store.createSale(customer, lines, disc, rate, label, extra, vehicleId, if (received.isBlank()) null else paid)
-                if (r.error != null) {
-                    toast(context, r.error)
-                } else {
-                    toast(context, "Sale saved.")
-                    onSaved(r.id)
-                }
-            }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
-        }
-    }
+        },
+    )
 }

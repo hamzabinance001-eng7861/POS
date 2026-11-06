@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -146,13 +147,13 @@ fun Pill(text: String, color: Color) {
 @Composable
 fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val bg = if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer
-    val fg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+    val bg = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val fg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         Modifier
             .clip(shape)
             .background(bg)
-            .border(1.5.dp, if (selected) MaterialTheme.colorScheme.primary else Color.Transparent, shape)
+            .border(1.5.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) { Text(label, color = fg, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
@@ -161,9 +162,9 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 internal fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = MaterialTheme.colorScheme.surface,
-    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
     focusedBorderColor = MaterialTheme.colorScheme.primary,
-    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    unfocusedBorderColor = Color.Transparent,
 )
 
 @Composable
@@ -204,8 +205,9 @@ fun ListRow(title: String, subtitle: String, amount: String, pill: Pair<String, 
 }
 
 @Composable
-fun AmountDialog(title: String, note: String, initial: Double, onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
+fun AmountDialog(title: String, note: String, initial: Double, onDismiss: () -> Unit, onConfirm: (Double, String) -> Unit) {
     var text by remember { mutableStateOf(plain(initial)) }
+    var method by remember { mutableStateOf(com.inventry.pos.data.PAYMENT_METHODS.first()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
@@ -214,10 +216,14 @@ fun AmountDialog(title: String, note: String, initial: Double, onDismiss: () -> 
             Column {
                 Text(note, color = muted(), fontSize = 13.sp)
                 Box(Modifier.padding(top = 12.dp)) { NumField("Amount", text, { text = it }, Modifier.fillMaxWidth()) }
+                androidx.compose.foundation.layout.Row(
+                    Modifier.padding(top = 12.dp).horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) { com.inventry.pos.data.PAYMENT_METHODS.forEach { m -> Chip(m, method == m) { method = m } } }
             }
         },
         confirmButton = {
-            TextButton(onClick = { val v = text.toDoubleOrNull() ?: 0.0; if (v > 0) onConfirm(v) }) { Text("Save payment") }
+            TextButton(onClick = { val v = text.toDoubleOrNull() ?: 0.0; if (v > 0) onConfirm(v, method) }) { Text("Save payment") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

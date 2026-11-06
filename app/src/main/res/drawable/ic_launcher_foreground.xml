@@ -10,7 +10,7 @@
         android:pathData="M44,24 h20 a6,6 0 0 1 6,6 v48 a6,6 0 0 1 -6,6 h-20 a6,6 0 0 1 -6,-6 v-48 a6,6 0 0 1 6,-6 z" />
     <!-- screen -->
     <path
-        android:fillColor="#063A4A"
+        android:fillColor="#3F3590"
         android:pathData="M43,31 h22 v40 h-22 z" />
     <!-- the letter K -->
     <path

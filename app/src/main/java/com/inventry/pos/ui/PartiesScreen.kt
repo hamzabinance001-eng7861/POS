@@ -214,8 +214,8 @@ private fun PartyDialog(kind: String, party: Party, onClose: () -> Unit, onEdit:
             if (isCustomer) "Receive payment" else "Pay supplier",
             "${party.name} · balance ${money(party.balance)}. It goes against the oldest invoices first.",
             party.balance, { settling = false },
-        ) {
-            Store.settleParty(kind, party.name, it)
+        ) { amount, how ->
+            Store.settleParty(kind, party.name, amount, how)
             settling = false
             toast(context, "Payment saved.")
         }
