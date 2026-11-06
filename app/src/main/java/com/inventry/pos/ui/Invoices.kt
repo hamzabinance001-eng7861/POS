@@ -89,19 +89,17 @@ fun SaleDialog(saleId: Long, onClose: () -> Unit) {
                     SumLine("Received", money(sale.paid))
                     if (sale.due > 0.004 && !sale.voided) SumLine("Left to pay", money(sale.due), color = MaterialTheme.colorScheme.error)
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    TextButton(onClick = { shareText(context, Store.receiptText(sale.id), "Share receipt") }) { Text("Share") }
-                    TextButton(onClick = {
+                ActionGrid(buildList {
+                    add(DialogAction("Share") { shareText(context, Store.receiptText(sale.id), "Share receipt") })
+                    add(DialogAction("WhatsApp") {
                         val phone = Store.parties("customers").firstOrNull { it.name.equals(sale.customer, true) }?.phone ?: ""
                         whatsApp(context, phone, Store.receiptText(sale.id))
-                    }) { Text("WhatsApp") }
-                    TextButton(onClick = { printHtml(context, Store.receiptHtml(sale.id), "Invoice ${sale.no}") }) { Text("Print / PDF") }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (!sale.voided && lines.any { it.productId > 0 }) TextButton(onClick = { returning = true }) { Text("Return items") }
-                    if (!sale.voided && sale.due > 0.004) TextButton(onClick = { paying = true }) { Text("Receive payment") }
-                    if (!sale.voided) TextButton(onClick = { voiding = true }) { Text("Void", color = MaterialTheme.colorScheme.error) }
-                }
+                    })
+                    add(DialogAction("Print / PDF") { printHtml(context, Store.receiptHtml(sale.id), "Invoice ${sale.no}") })
+                    if (!sale.voided && sale.due > 0.004) add(DialogAction("Receive payment") { paying = true })
+                    if (!sale.voided && lines.any { it.productId > 0 }) add(DialogAction("Return items") { returning = true })
+                    if (!sale.voided) add(DialogAction("Void", danger = true) { voiding = true })
+                })
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Close") } },
@@ -147,10 +145,10 @@ fun PurchaseDialog(purchaseId: Long, onClose: () -> Unit) {
                     SumLine("Paid", money(purchase.paid))
                     if (purchase.due > 0.004) SumLine("Still owed", money(purchase.due), color = MaterialTheme.colorScheme.error)
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    TextButton(onClick = { returning = true }) { Text("Return to supplier") }
-                    if (purchase.due > 0.004) TextButton(onClick = { paying = true }) { Text("Pay supplier") }
-                }
+                ActionGrid(buildList {
+                    add(DialogAction("Return to supplier") { returning = true })
+                    if (purchase.due > 0.004) add(DialogAction("Pay supplier") { paying = true })
+                })
             }
         },
         confirmButton = { TextButton(onClick = onClose) { Text("Close") } },

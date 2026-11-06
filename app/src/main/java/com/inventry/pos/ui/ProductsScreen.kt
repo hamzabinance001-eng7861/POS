@@ -126,7 +126,7 @@ fun ProductsScreen() {
         OnePane {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SearchField(search, { search = it }, "Search items…", Modifier.weight(1f))
-                CircleButton("📷", { photoSearch = true }, filled = false, size = 48.dp)
+                IconCircle(androidx.compose.ui.res.painterResource(com.inventry.pos.R.drawable.ic_camera), { photoSearch = true }, 48.dp)
                 BigButton("＋ Add Item", onClick = { clearForm(); showForm = true })
             }
             if (categories.isNotEmpty()) {

@@ -56,7 +56,7 @@ fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String, 
         value = value,
         onValueChange = onChange,
         placeholder = { Text(placeholder, color = muted(), fontSize = 14.sp) },
-        leadingIcon = { Text("🔍", modifier = Modifier.padding(start = 8.dp)) },
+        leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Search, contentDescription = null, tint = muted(), modifier = Modifier.padding(start = 6.dp)) },
         singleLine = true,
         shape = RoundedCornerShape(50),
         colors = fieldColors(),
@@ -215,7 +215,7 @@ fun ServiceRow(emoji: String, name: String, price: Double, qty: Double, note: St
         Box(
             Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
-        ) { Text(emoji, fontSize = 26.sp) }
+        ) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(money(price), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -225,5 +225,22 @@ fun ServiceRow(emoji: String, name: String, price: Double, qty: Double, note: St
             Text("Edit", color = muted(), fontSize = 12.sp, modifier = Modifier.clickable(onClick = onEdit).padding(horizontal = 8.dp, vertical = 6.dp))
         }
         QtyStepper(qty, onMinus, onPlus)
+    }
+}
+
+/** A round violet-tinted button with a line icon, e.g. the camera next to a search box. */
+@Composable
+fun IconCircle(icon: androidx.compose.ui.graphics.painter.Painter, onClick: () -> Unit, size: Dp = 46.dp) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Box(
+        Modifier
+            .pressScale(src)
+            .size(size)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
     }
 }

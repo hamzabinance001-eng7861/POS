@@ -149,30 +149,30 @@ fun NameField(label: String, value: String, onChange: (String) -> Unit, names: L
 @Composable
 fun StatTile(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
     AppCard(modifier) {
-        Box(Modifier.clip(RoundedCornerShape(50)).background(accent.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 3.dp)) {
-            Text(label, color = accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Box(Modifier.clip(RoundedCornerShape(50)).background(accent.copy(alpha = 0.15f)).padding(horizontal = 9.dp, vertical = 2.dp)) {
+            Text(label, color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
-        Text(value, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
     }
 }
 
-/** A rounded tile with a big emoji, used for the shortcuts on Home and the More screen. */
+/** A compact rounded tile with a line icon, used for the shortcuts on Home and the More screen. */
 @Composable
-fun EmojiTile(emoji: String, label: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun IconTile(icon: androidx.compose.ui.graphics.painter.Painter, label: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Column(
         modifier
             .pressScale(src)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 4.dp),
+            .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(Modifier.size(48.dp).clip(CircleShape).background(color.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-            Text(emoji, fontSize = 22.sp)
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
         }
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
     }
 }
 

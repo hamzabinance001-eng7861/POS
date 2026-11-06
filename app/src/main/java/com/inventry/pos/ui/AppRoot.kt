@@ -263,7 +263,7 @@ fun MainShell() {
 @Composable
 private fun RoundIcon(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick),
+        Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp)) }
 }
@@ -271,13 +271,12 @@ private fun RoundIcon(icon: ImageVector, description: String, onClick: () -> Uni
 @Composable
 private fun TopBar(title: String, canGoBack: Boolean, onLeft: () -> Unit, onSettings: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RoundIcon(if (canGoBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu, if (canGoBack) "Back" else "Menu", onLeft)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-            Text(Settings.shop, fontSize = 11.sp, color = muted())
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         }
         RoundIcon(Icons.Filled.Settings, "Settings", onSettings)
     }

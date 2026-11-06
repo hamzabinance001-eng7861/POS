@@ -17,6 +17,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.inventry.pos.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,17 +54,17 @@ import com.inventry.pos.data.vehicles
 
 /** A small rounded square with an emoji, the way the design marks each block of the order page. */
 @Composable
-private fun IconChip(emoji: String) {
+private fun IconChip(icon: androidx.compose.ui.graphics.painter.Painter) {
     Box(
         Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = 18.sp) }
+    ) { androidx.compose.material3.Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) }
 }
 
 @Composable
-private fun BlockTitle(emoji: String, title: String, note: String = "") {
+private fun BlockTitle(icon: androidx.compose.ui.graphics.painter.Painter, title: String, note: String = "") {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-        IconChip(emoji)
+        IconChip(icon)
         Column(Modifier.padding(start = 12.dp)) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             if (note.isNotBlank()) Text(note, color = muted(), fontSize = 12.sp)
@@ -107,12 +116,12 @@ internal fun CheckoutPage(
         }
 
         AppCard {
-            BlockTitle("👤", "Customer", "Leave empty for a walk-in")
+            BlockTitle(rememberVectorPainter(Icons.Filled.Person), "Customer", "Leave empty for a walk-in")
             NameField("Customer name", customer, { customer = it }, customerNames, placeholder = "Walk-in customer")
         }
 
         AppCard {
-            BlockTitle("🧾", "Items")
+            BlockTitle(painterResource(R.drawable.ic_receipt), "Items")
             cart.forEachIndexed { i, it ->
                 val product = remember(it.productId, Store.rev) { if (it.kind == LineKind.PRODUCT) Store.product(it.productId) else null }
                 Row(Modifier.fillMaxWidth().padding(top = if (i == 0) 0.dp else 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -122,7 +131,12 @@ internal fun CheckoutPage(
                         Box(
                             Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center,
-                        ) { Text(if (it.kind == LineKind.SERVICE) "🛠️" else "✏️", fontSize = 22.sp) }
+                        ) {
+                            androidx.compose.material3.Icon(
+                                rememberVectorPainter(if (it.kind == LineKind.SERVICE) Icons.Filled.Build else Icons.Filled.Create),
+                                contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp),
+                            )
+                        }
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Text(it.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -145,7 +159,7 @@ internal fun CheckoutPage(
         }
 
         AppCard {
-            BlockTitle("🏷️", "Charges")
+            BlockTitle(rememberVectorPainter(Icons.Filled.Info), "Charges")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     NumField("Discount", discount, { discount = it }, Modifier.weight(1f))
@@ -162,7 +176,7 @@ internal fun CheckoutPage(
         }
 
         AppCard {
-            BlockTitle("💳", "Payment", "How the customer pays")
+            BlockTitle(rememberVectorPainter(Icons.Filled.AccountBox), "Payment", "How the customer pays")
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PAYMENT_METHODS.forEach { m -> Chip(m, method == m) { method = m } }
             }

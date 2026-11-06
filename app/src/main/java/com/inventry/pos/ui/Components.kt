@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -60,11 +61,11 @@ fun muted(): Color = MaterialTheme.colorScheme.onSurfaceVariant
 fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(14.dp), content = content)
     }
 }
 
@@ -111,7 +112,7 @@ fun NumField(label: String, value: String, onChange: (String) -> Unit, modifier:
 }
 
 @Composable
-fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, tonal: Boolean = false, danger: Boolean = false, coral: Boolean = false) {
+fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, tonal: Boolean = false, danger: Boolean = false, coral: Boolean = false, icon: androidx.compose.ui.graphics.painter.Painter? = null) {
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val container = when {
         coral -> Red
@@ -127,11 +128,17 @@ fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
     }
     Button(
         onClick = onClick,
-        modifier = modifier.pressScale(src).height(52.dp),
+        modifier = modifier.pressScale(src).height(48.dp),
         interactionSource = src,
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content),
-    ) { Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+    ) {
+        if (icon != null) {
+            androidx.compose.material3.Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(end = 8.dp))
+        }
+        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+    }
 }
 
 /** A small rounded label such as "Paid" or "3 in stock". */
@@ -167,7 +174,7 @@ fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
             .background(bg)
             .border(1.5.dp, edge, shape)
             .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
     ) { Text(label, color = fg, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
 }
 
@@ -283,6 +290,33 @@ private fun TableLine(cells: List<String>, header: Boolean = false, bold: Boolea
                 fontWeight = if (header || bold) FontWeight.Bold else FontWeight.Normal,
                 color = if (header) muted() else MaterialTheme.colorScheme.onSurface,
             )
+        }
+    }
+}
+
+/** One tinted button in an [ActionGrid]. */
+class DialogAction(val label: String, val danger: Boolean = false, val onClick: () -> Unit)
+
+/** Dialog actions laid out three to a row as soft tinted buttons, so they line up instead of scattering. */
+@Composable
+fun ActionGrid(actions: List<DialogAction>) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        actions.chunked(3).forEach { row ->
+            androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { a ->
+                    val c = if (a.danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(c.copy(alpha = 0.10f))
+                            .clickable(onClick = a.onClick)
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(a.label, color = c, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center) }
+                }
+                repeat(3 - row.size) { androidx.compose.foundation.layout.Spacer(Modifier.weight(1f)) }
+            }
         }
     }
 }

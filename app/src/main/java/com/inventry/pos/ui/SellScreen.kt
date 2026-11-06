@@ -45,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.inventry.pos.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -272,10 +274,7 @@ fun SellScreen() {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 SearchField(search, { search = it }, "Search name, barcode or category…", Modifier.weight(1f))
-                                Box(
-                                    Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer).clickable { photoSearch = true },
-                                    contentAlignment = Alignment.Center,
-                                ) { Text("📷", fontSize = 20.sp) }
+                                IconCircle(painterResource(R.drawable.ic_camera), { photoSearch = true }, 48.dp)
                             }
                             if (categories.isNotEmpty()) {
                                 Row(

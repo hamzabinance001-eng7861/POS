@@ -71,8 +71,8 @@ fun ImageSearchDialog(onPick: (Product) -> Unit, onClose: () -> Unit) {
                     color = muted(), fontSize = 13.sp,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    BigButton("📷  Take photo", onClick = { camera.launch(null) }, modifier = Modifier.weight(1f), tonal = true)
-                    BigButton("🖼  Choose", onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), tonal = true)
+                    BigButton("Take photo", onClick = { camera.launch(null) }, modifier = Modifier.weight(1f), tonal = true)
+                    BigButton("Choose photo", onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, modifier = Modifier.weight(1f), tonal = true)
                 }
                 val list = results
                 if (list != null) {
