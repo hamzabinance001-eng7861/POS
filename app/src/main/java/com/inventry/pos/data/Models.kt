@@ -1,5 +1,8 @@
 package com.inventry.pos.data
 
+import android.content.Context
+import android.content.SharedPreferences
+import android.util.Base64
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,13 +20,48 @@ object Auth {
 
 /** Things the owner can change in Settings. */
 object Settings {
-    var shop by mutableStateOf("Khan Mobile")
-    var currency by mutableStateOf("Rs")
-    var taxRate by mutableStateOf(0.0)
-    var chargeLabel by mutableStateOf("Delivery charge")
+    private var prefs: SharedPreferences? = null
+
+    private var shopState by mutableStateOf("Khan Mobile")
+    private var currencyState by mutableStateOf("Rs")
+    private var taxState by mutableStateOf(0.0)
+    private var chargeState by mutableStateOf("Delivery charge")
+    private var logoState by mutableStateOf<ByteArray?>(null)
+
+    /** Reads what was saved last time. Called once when the app starts. */
+    fun init(context: Context) {
+        val p = context.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs = p
+        shopState = p.getString("shop", shopState) ?: shopState
+        currencyState = p.getString("currency", currencyState) ?: currencyState
+        taxState = (p.getString("tax", null)?.toDoubleOrNull()) ?: taxState
+        chargeState = p.getString("charge", chargeState) ?: chargeState
+        val logo = p.getString("logo", null)
+        logoState = if (logo.isNullOrEmpty()) null else Base64.decode(logo, Base64.NO_WRAP)
+    }
+
+    private fun save(key: String, value: String?) {
+        prefs?.edit()?.putString(key, value)?.apply()
+    }
+
+    // Every change is written to the phone straight away, so it is still there next time.
+    var shop: String
+        get() = shopState
+        set(v) { shopState = v; save("shop", v) }
+    var currency: String
+        get() = currencyState
+        set(v) { currencyState = v; save("currency", v) }
+    var taxRate: Double
+        get() = taxState
+        set(v) { taxState = v; save("tax", v.toString()) }
+    var chargeLabel: String
+        get() = chargeState
+        set(v) { chargeState = v; save("charge", v) }
 
     /** The shop logo as a small JPEG, shown on the home screen. */
-    var logo by mutableStateOf<ByteArray?>(null)
+    var logo: ByteArray?
+        get() = logoState
+        set(v) { logoState = v; save("logo", v?.let { Base64.encodeToString(it, Base64.NO_WRAP) }) }
 }
 
 data class Product(

@@ -93,8 +93,8 @@ fun SettingsScreen() {
         AppCard {
             Heading("Backup")
             Text(
-                "The data lives only in the phone’s memory, so it is cleared when Android closes the app. " +
-                    "Make a backup file before you close it, and restore it next time.",
+                "Your records are saved on this phone and stay when you close the app. They are lost only if you uninstall " +
+                    "the app or clear its data, so keep a backup file somewhere safe (WhatsApp, Drive, e-mail). Restore it to put everything back.",
                 color = muted(), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

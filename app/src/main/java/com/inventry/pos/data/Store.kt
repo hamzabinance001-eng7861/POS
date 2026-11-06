@@ -45,11 +45,14 @@ private val SCHEMA = listOf(
 )
 
 /**
- * Passing a null file name to SQLiteOpenHelper gives a real SQLite database that lives only in
- * memory. It is empty on every launch and is gone when Android closes the app. (Use Settings →
- * Backup to keep a copy.)
+ * A real SQLite database file in the app's private storage, so records stay after the app is
+ * closed, the phone restarts or the app is updated. Uninstalling the app (or clearing its data)
+ * removes it; Settings → Backup keeps a copy outside the app.
+ *
+ * When the tables change in a later version, raise the version number and add the change to
+ * [MemoryHelper.onUpgrade] so existing records are kept.
  */
-private class MemoryHelper(context: Context) : SQLiteOpenHelper(context, null, null, 1) {
+private class MemoryHelper(context: Context) : SQLiteOpenHelper(context, "khan_mobile.db", null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         SCHEMA.forEach { db.execSQL(it) }
     }
@@ -65,6 +68,7 @@ object Store {
         private set
 
     fun init(context: Context) {
+        Settings.init(context)
         if (!::helper.isInitialized) helper = MemoryHelper(context.applicationContext)
     }
 
