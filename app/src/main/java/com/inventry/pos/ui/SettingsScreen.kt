@@ -121,7 +121,7 @@ fun SettingsScreen() {
         AppCard {
             Heading("About")
             Text(
-                "Inventry POS · version 1.0\nSigned in on this phone — you will not be asked again.",
+                "Khan Mobile · version 1.0\nSigned in on this phone — you will not be asked again.",
                 color = muted(), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp),
             )
         }

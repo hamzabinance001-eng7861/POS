@@ -1,4 +1,4 @@
-# Inventry POS (Android)
+# Khan Mobile (Android)
 
 A small point-of-sale app: sell, buy, products and reports, with an in-memory database.
 Sign in with the fixed account set in `data/Models.kt` (`Auth`).

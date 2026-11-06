@@ -17,7 +17,7 @@ object Auth {
 
 /** Things the owner can change in Settings. */
 object Settings {
-    var shop by mutableStateOf("My Shop")
+    var shop by mutableStateOf("Khan Mobile")
     var currency by mutableStateOf("Rs")
     var taxRate by mutableStateOf(0.0)
     var chargeLabel by mutableStateOf("Delivery charge")

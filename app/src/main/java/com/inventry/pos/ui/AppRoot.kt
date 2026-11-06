@@ -89,7 +89,7 @@ fun LoginScreen(onSuccess: () -> Unit) {
             Box(
                 Modifier.background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp)).padding(horizontal = 24.dp, vertical = 16.dp),
             ) { Text("🛍️", fontSize = 34.sp) }
-            Text("Inventry POS", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
+            Text("Khan Mobile", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
             Text(
                 "Sell, buy and see how the shop is doing.",
                 color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 22.dp),
