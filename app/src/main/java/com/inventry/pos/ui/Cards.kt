@@ -27,6 +27,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -56,7 +59,7 @@ fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String, 
         value = value,
         onValueChange = onChange,
         placeholder = { Text(placeholder, color = muted(), fontSize = 14.sp) },
-        leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Search, contentDescription = null, tint = muted(), modifier = Modifier.padding(start = 6.dp)) },
+        leadingIcon = { androidx.compose.material3.Icon(Icons.Filled.Search, contentDescription = null, tint = muted(), modifier = Modifier.padding(start = 6.dp)) },
         singleLine = true,
         shape = RoundedCornerShape(50),
         colors = fieldColors(),
@@ -215,7 +218,7 @@ fun ServiceRow(emoji: String, name: String, price: Double, qty: Double, note: St
         Box(
             Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
-        ) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+        ) { androidx.compose.material3.Icon(Icons.Filled.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(money(price), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
