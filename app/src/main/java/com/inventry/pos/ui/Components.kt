@@ -3,6 +3,7 @@ package com.inventry.pos.ui
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,7 +61,7 @@ fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(Modifier.padding(16.dp), content = content)
     }
@@ -87,6 +89,7 @@ fun Field(
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
         visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        colors = fieldColors(),
         modifier = modifier.fillMaxWidth(),
     )
 }
@@ -101,18 +104,21 @@ fun NumField(label: String, value: String, onChange: (String) -> Unit, modifier:
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        colors = fieldColors(),
         modifier = modifier,
     )
 }
 
 @Composable
-fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, tonal: Boolean = false, danger: Boolean = false) {
+fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, tonal: Boolean = false, danger: Boolean = false, coral: Boolean = false) {
     val container = when {
+        coral -> Red
         danger -> MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
         tonal -> MaterialTheme.colorScheme.primaryContainer
         else -> MaterialTheme.colorScheme.primary
     }
     val content = when {
+        coral -> Color.White
         danger -> MaterialTheme.colorScheme.error
         tonal -> MaterialTheme.colorScheme.onPrimaryContainer
         else -> MaterialTheme.colorScheme.onPrimary
@@ -120,7 +126,7 @@ fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
     Button(
         onClick = onClick,
         modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content),
     ) { Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
 }
@@ -136,18 +142,29 @@ fun Pill(text: String, color: Color) {
     ) { Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
 }
 
+/** A pill filter. Selected = white with a teal outline; not selected = soft blue. */
 @Composable
 fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val shape = RoundedCornerShape(50)
+    val bg = if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer
+    val fg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
     Box(
         Modifier
-            .clip(RoundedCornerShape(50))
+            .clip(shape)
             .background(bg)
+            .border(1.5.dp, if (selected) MaterialTheme.colorScheme.primary else Color.Transparent, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 9.dp)
-    ) { Text(label, color = fg, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) { Text(label, color = fg, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
 }
+
+@Composable
+internal fun fieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+)
 
 @Composable
 fun SumLine(label: String, value: String, big: Boolean = false, color: Color = Color.Unspecified) {

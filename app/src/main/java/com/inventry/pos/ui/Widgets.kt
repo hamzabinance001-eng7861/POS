@@ -131,6 +131,7 @@ fun NameField(label: String, value: String, onChange: (String) -> Unit, names: L
             label = { Text(label) },
             placeholder = if (placeholder.isEmpty()) null else ({ Text(placeholder) }),
             singleLine = true,
+            colors = fieldColors(),
             shape = RoundedCornerShape(14.dp),
             trailingIcon = if (names.isEmpty()) null else ({
                 Text("▾", color = muted(), modifier = Modifier.clickable { open = true }.padding(14.dp))

@@ -84,10 +84,16 @@ fun HomeScreen(nav: Nav) {
             BarChart(week, bar = Color.White, label = Color.White.copy(alpha = 0.8f))
         }
 
+        // ---- the two big buttons from the design
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            BigButton("🛒  New Sale", { nav.tab(1) }, Modifier.weight(1f))
+            BigButton("📦  Purchase", { nav.open("buy") }, Modifier.weight(1f), coral = true)
+        }
+
         // ---- shortcuts
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             EmojiTile("🛒", "New sale", Indigo, { nav.tab(1) }, Modifier.weight(1f))
-            EmojiTile("📦", "Purchase", Violet, { nav.tab(2) }, Modifier.weight(1f))
+            EmojiTile("📦", "Purchase", Violet, { nav.open("buy") }, Modifier.weight(1f))
             EmojiTile("👥", "Customers", Color(0xFF0EA5E9), { nav.open("customers") }, Modifier.weight(1f))
             EmojiTile("💸", "Expenses", Amber, { nav.open("expenses") }, Modifier.weight(1f))
         }

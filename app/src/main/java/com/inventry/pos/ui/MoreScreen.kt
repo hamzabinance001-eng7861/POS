@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 private class Entry(val emoji: String, val label: String, val color: Color, val target: String)
 
 private val PEOPLE = listOf(
+    Entry("📦", "Purchase", Color(0xFFE5484D), "buy"),
     Entry("👥", "Customers", Color(0xFF0EA5E9), "customers"),
     Entry("🏭", "Suppliers", Color(0xFF7C3AED), "suppliers"),
 )
