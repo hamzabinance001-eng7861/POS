@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ private fun greeting(): String {
 fun HomeScreen(nav: Nav) {
     val today = remember(Store.rev) { Store.salesByDay(Periods.today()) }
     val sold = today.sumOf { it.total }
+    val shownSold by androidx.compose.animation.core.animateFloatAsState(sold.toFloat(), androidx.compose.animation.core.tween(900), label = "sold")
     val count = today.sumOf { it.count }
     val week = remember(Store.rev) { Store.lastDaysTotals(7) }
     val owed = remember(Store.rev) { Store.customersOweTotal() }
@@ -56,6 +58,7 @@ fun HomeScreen(nav: Nav) {
         // ---- the summary card
         Column(
             Modifier
+                .appear(0)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .background(heroBrush())
@@ -76,7 +79,7 @@ fun HomeScreen(nav: Nav) {
                 }
             }
             Text("Sales today", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, modifier = Modifier.padding(top = 18.dp))
-            Text(money(sold), color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
+            Text(money(shownSold.toDouble()), color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
             Text(
                 "$count invoice${if (count == 1) "" else "s"} today",
                 color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, modifier = Modifier.padding(bottom = 16.dp),
@@ -85,19 +88,19 @@ fun HomeScreen(nav: Nav) {
         }
 
         // ---- the two big buttons from the design
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.appear(90).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             BigButton("🛒  New Sale", { nav.tab(1) }, Modifier.weight(1f))
             BigButton("📦  Purchase", { nav.open("buy") }, Modifier.weight(1f), coral = true)
         }
 
         // ---- shortcuts
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.appear(150).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             EmojiTile("🛒", "New sale", Indigo, { nav.tab(1) }, Modifier.weight(1f))
             EmojiTile("📦", "Purchase", Violet, { nav.open("buy") }, Modifier.weight(1f))
             EmojiTile("👥", "Customers", Color(0xFF0EA5E9), { nav.open("customers") }, Modifier.weight(1f))
             EmojiTile("💸", "Expenses", Amber, { nav.open("expenses") }, Modifier.weight(1f))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.appear(210).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             EmojiTile("↩️", "Returns", Red, { nav.open("returns") }, Modifier.weight(1f))
             EmojiTile("🚚", "Vehicles", Color(0xFF14B8A6), { nav.open("vehicles") }, Modifier.weight(1f))
             EmojiTile("📒", "Cash book", Green, { nav.open("reports:5") }, Modifier.weight(1f))
@@ -105,16 +108,16 @@ fun HomeScreen(nav: Nav) {
         }
 
         // ---- the numbers
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.appear(270).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile("Customers owe", money(owed), Red, Modifier.weight(1f))
             StatTile("You owe suppliers", money(weOwe), Amber, Modifier.weight(1f))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.appear(330).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile("Stock value", money(stockValue), Green, Modifier.weight(1f))
             StatTile("Low stock", "$low item${if (low == 1) "" else "s"}", if (low > 0) Amber else Green, Modifier.weight(1f))
         }
 
-        AppCard {
+        AppCard(Modifier.appear(420)) {
             Heading("Recent sales")
             if (recent.isEmpty()) EmptyState("No sales yet. Add a product, then make your first sale.")
             recent.forEach { s -> ListRow("#${s.no} · ${s.customer}", fmtDate(s.date), money(s.total), salePill(s)) { nav.tab(1) } }

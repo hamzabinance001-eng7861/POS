@@ -2,6 +2,22 @@ package com.inventry.pos.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -86,10 +102,15 @@ fun LoginScreen(onSuccess: () -> Unit) {
     var pass by rememberSaveable { mutableStateOf("") }
     var error by rememberSaveable { mutableStateOf("") }
     var show by rememberSaveable { mutableStateOf(false) }
+    val enter = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { enter.animateTo(1f, tween(750, easing = FastOutSlowInEasing)) }
 
     Box(Modifier.fillMaxSize().systemBarsPadding().imePadding(), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+            Modifier
+                .graphicsLayer { alpha = enter.value; translationY = (1f - enter.value) * 60f }
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
@@ -185,6 +206,23 @@ private fun Content(tab: Int, sub: String?, nav: Nav) {
     }
 }
 
+/** Slides and fades between tabs and sub-screens; the direction follows where you are going. */
+@Composable
+private fun AnimatedPage(tab: Int, sub: String?, nav: Nav) {
+    AnimatedContent(
+        targetState = tab to sub,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val opening = targetState.second != null && initialState.second == null
+            val closing = targetState.second == null && initialState.second != null
+            val dir = if (opening) 1 else if (closing) -1 else if (targetState.first >= initialState.first) 1 else -1
+            (fadeIn(tween(260)) + slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { dir * it / 9 }) togetherWith
+                (fadeOut(tween(140)) + slideOutHorizontally(tween(260)) { -dir * it / 12 })
+        },
+        label = "page",
+    ) { (t, s) -> Content(t, s, nav) }
+}
+
 @Composable
 fun MainShell() {
     var tab by rememberSaveable { mutableStateOf(0) }
@@ -213,10 +251,10 @@ fun MainShell() {
                         )
                     }
                 }
-                Box(Modifier.weight(1f)) { Content(tab, sub, nav) }
+                Box(Modifier.weight(1f)) { AnimatedPage(tab, sub, nav) }
             }
         } else {
-            Box(Modifier.weight(1f)) { Content(tab, sub, nav) }
+            Box(Modifier.weight(1f)) { AnimatedPage(tab, sub, nav) }
             BottomBar(tab) { nav.tab(it) }
         }
     }
@@ -260,22 +298,25 @@ private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
     ) {
         TABS.forEachIndexed { i, t ->
             val on = i == selected
+            val tabBg by animateColorAsState(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, tween(220), label = "tabBg")
+            val tabTint by animateColorAsState(if (on) MaterialTheme.colorScheme.primary else muted(), tween(220), label = "tabTint")
+            val tabScale by animateFloatAsState(if (on) 1.15f else 1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "tabScale")
             Column(
                 Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                    .background(tabBg)
                     .clickable { onSelect(i) }
                     .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
-                    t.icon, contentDescription = t.label, modifier = Modifier.size(22.dp),
-                    tint = if (on) MaterialTheme.colorScheme.primary else muted(),
+                    t.icon, contentDescription = t.label, modifier = Modifier.size(22.dp).scale(tabScale),
+                    tint = tabTint,
                 )
                 Text(
                     t.label, fontSize = 10.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
-                    color = if (on) MaterialTheme.colorScheme.primary else muted(), modifier = Modifier.padding(top = 2.dp),
+                    color = tabTint, modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }

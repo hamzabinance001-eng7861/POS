@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -207,13 +208,17 @@ internal fun CheckoutPage(
 @Composable
 internal fun SaleDoneDialog(saleId: Long, onInvoice: () -> Unit, onClose: () -> Unit) {
     val sale = remember(saleId, Store.rev) { Store.sale(saleId) }
+    val pop = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        pop.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.35f, stiffness = androidx.compose.animation.core.Spring.StiffnessLow))
+    }
     AlertDialog(
         onDismissRequest = onClose,
         shape = RoundedCornerShape(28.dp),
         title = null,
         text = {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(72.dp).clip(CircleShape).background(Green.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(72.dp).scale(pop.value).clip(CircleShape).background(Green.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                     Text("✓", color = Green, fontSize = 36.sp, fontWeight = FontWeight.Bold)
                 }
                 Text("Sale completed", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, modifier = Modifier.padding(top = 14.dp))

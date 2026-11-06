@@ -1,6 +1,14 @@
 package com.inventry.pos.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -69,6 +77,11 @@ internal data class SaleItem(
     val amount: Double get() = qty * price
 
     fun toLine() = CartLine(if (kind == LineKind.PRODUCT) productId else 0L, name, qty, price, cost, kind, serial, warranty)
+}
+
+/** The sale being built lives here, so it stays when you switch tabs. */
+internal object CartHolder {
+    val items = mutableStateListOf<SaleItem>()
 }
 
 /** The lines typed so far on a purchase, each with a Remove link. */
@@ -170,7 +183,7 @@ fun SellScreen() {
     var checkout by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf("") }
-    val cart = remember { mutableStateListOf<SaleItem>() }
+    val cart = CartHolder.items
     var nextCustomKey by remember { mutableStateOf(-1_000_000L) }
     var openSale by remember { mutableStateOf<Long?>(null) }
     var doneSale by remember { mutableStateOf<Long?>(null) }
@@ -329,7 +342,11 @@ fun SellScreen() {
                         }
                     }
 
-                    if (cart.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = cart.isNotEmpty(),
+                        enter = slideInVertically(spring(dampingRatio = 0.7f, stiffness = 300f)) { it } + fadeIn(),
+                        exit = slideOutVertically { it } + fadeOut(),
+                    ) {
                         CartBar(count = cart.sumOf { it.qty }, lines = cart.size, total = cart.sumOf { it.amount }) { checkout = true }
                     }
                 }
@@ -362,6 +379,7 @@ fun SellScreen() {
 /** The violet pill at the bottom: how many items, the total, and the way on to checkout. */
 @Composable
 private fun CartBar(count: Double, lines: Int, total: Double, onNext: () -> Unit) {
+    val shownTotal by animateFloatAsState(total.toFloat(), tween(320), label = "cartTotal")
     Row(
         Modifier
             .fillMaxWidth()
@@ -374,7 +392,7 @@ private fun CartBar(count: Double, lines: Int, total: Double, onNext: () -> Unit
     ) {
         Text("Proceed to checkout", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
         Text(
-            "$lines line${if (lines == 1) "" else "s"}  ·  ${money(total)}",
+            "$lines line${if (lines == 1) "" else "s"}  ·  ${money(shownTotal.toDouble())}",
             color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp,
         )
         Text("  →", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)

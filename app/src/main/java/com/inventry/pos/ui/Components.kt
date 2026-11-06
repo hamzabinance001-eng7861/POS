@@ -112,6 +112,7 @@ fun NumField(label: String, value: String, onChange: (String) -> Unit, modifier:
 
 @Composable
 fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, tonal: Boolean = false, danger: Boolean = false, coral: Boolean = false) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val container = when {
         coral -> Red
         danger -> MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
@@ -126,7 +127,8 @@ fun BigButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
     }
     Button(
         onClick = onClick,
-        modifier = modifier.height(52.dp),
+        modifier = modifier.pressScale(src).height(52.dp),
+        interactionSource = src,
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = content),
     ) { Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
@@ -147,14 +149,24 @@ fun Pill(text: String, color: Color) {
 @Composable
 fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
-    val bg = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val fg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val spec = androidx.compose.animation.core.tween<androidx.compose.ui.graphics.Color>(220)
+    val bg by androidx.compose.animation.animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, spec, label = "chipBg",
+    )
+    val fg by androidx.compose.animation.animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, spec, label = "chipFg",
+    )
+    val edge by androidx.compose.animation.animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, spec, label = "chipEdge",
+    )
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         Modifier
+            .pressScale(src)
             .clip(shape)
             .background(bg)
-            .border(1.5.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
-            .clickable(onClick = onClick)
+            .border(1.5.dp, edge, shape)
+            .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) { Text(label, color = fg, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) }
 }

@@ -1,6 +1,18 @@
 package com.inventry.pos.ui
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,28 +67,49 @@ fun SearchField(value: String, onChange: (String) -> Unit, placeholder: String, 
 @Composable
 fun CircleButton(label: String, onClick: () -> Unit, filled: Boolean = true, size: Dp = 30.dp) {
     val scheme = MaterialTheme.colorScheme
+    val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Box(
         Modifier
+            .pressScale(src)
             .size(size)
             .clip(CircleShape)
             .background(if (filled) scheme.primary else scheme.primaryContainer)
-            .clickable(onClick = onClick),
+            .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = if (filled) scheme.onPrimary else scheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 
-/** Shows a single "+" until something is chosen, then "− 2 +". */
+/** Shows a single "+" until something is chosen, then "− 2 +". The change slides and springs. */
 @Composable
 fun QtyStepper(qty: Double, onMinus: () -> Unit, onPlus: () -> Unit) {
-    if (qty <= 0) {
-        CircleButton("+", onPlus)
-    } else {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CircleButton("−", onMinus, filled = false, size = 26.dp)
-            Text(qtyText(qty), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            CircleButton("+", onPlus, size = 26.dp)
+    AnimatedContent(
+        targetState = qty > 0,
+        transitionSpec = {
+            (fadeIn(tween(160)) + scaleIn(spring(Spring.DampingRatioMediumBouncy), initialScale = 0.6f)) togetherWith
+                (fadeOut(tween(100)) + scaleOut(targetScale = 0.6f))
+        },
+        label = "stepper",
+    ) { chosen ->
+        if (!chosen) {
+            CircleButton("+", onPlus)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CircleButton("−", onMinus, filled = false, size = 26.dp)
+                AnimatedContent(
+                    targetState = qty,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut())
+                        } else {
+                            (slideInVertically { -it } + fadeIn()) togetherWith (slideOutVertically { it } + fadeOut())
+                        }
+                    },
+                    label = "qty",
+                ) { q -> Text(qtyText(q), fontWeight = FontWeight.Bold, fontSize = 14.sp) }
+                CircleButton("+", onPlus, size = 26.dp)
+            }
         }
     }
 }
@@ -135,13 +169,15 @@ fun ProductCard(p: Product, qty: Double, onMinus: () -> Unit, onPlus: () -> Unit
 fun ProductRow(p: Product, qty: Double, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(20.dp)
     val chosen = qty > 0
+    val rowBg by animateColorAsState(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, tween(240), label = "rowBg")
+    val rowEdge by animateColorAsState(if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, tween(240), label = "rowEdge")
     val out = p.stock <= 0
     Row(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .border(1.5.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+            .background(rowBg)
+            .border(1.5.dp, rowEdge, shape)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -165,12 +201,14 @@ fun ProductRow(p: Product, qty: Double, onMinus: () -> Unit, onPlus: () -> Unit,
 fun ServiceRow(emoji: String, name: String, price: Double, qty: Double, note: String, onMinus: () -> Unit, onPlus: () -> Unit, onEdit: (() -> Unit)? = null) {
     val shape = RoundedCornerShape(20.dp)
     val chosen = qty > 0
+    val rowBg by animateColorAsState(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, tween(240), label = "rowBg")
+    val rowEdge by animateColorAsState(if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, tween(240), label = "rowEdge")
     Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .border(1.5.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+            .background(rowBg)
+            .border(1.5.dp, rowEdge, shape)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

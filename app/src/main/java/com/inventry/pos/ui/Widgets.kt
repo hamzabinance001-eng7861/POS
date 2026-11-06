@@ -159,11 +159,13 @@ fun StatTile(label: String, value: String, accent: Color, modifier: Modifier = M
 /** A rounded tile with a big emoji, used for the shortcuts on Home and the More screen. */
 @Composable
 fun EmojiTile(emoji: String, label: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Column(
         modifier
+            .pressScale(src)
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = src, indication = androidx.compose.foundation.LocalIndication.current, onClick = onClick)
             .padding(vertical = 14.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
